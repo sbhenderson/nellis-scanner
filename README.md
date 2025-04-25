@@ -1,30 +1,84 @@
 # Nellis Scanner
 
-Scan Nellis Auctions to determine the quality of the marketplace. We will:
+A .NET 9 application for tracking electronics auctions on Nellis Auctions.
 
-1. Grab the first X listings on some frequency
-2. Keep track of future listings for a given inventory ID
-3. Store data in a PostgreSQL instance
-4. Analyze the data and draw some conclusions
+## Features
 
-## Background
+- **Real-time Auction Monitoring**: Tracks electronics auctions from Nellis Auctions with retail price high-to-low sorting.
+- **Price History Tracking**: Records price and bid history for auctions over time.
+- **Automatic Scanning**: Scans for new auctions every 5 minutes, with more frequent checks for auctions closing soon.
+- **Web Interface**: Blazor Server-rendered UI for viewing current auctions and their price history.
 
-I pass by the Nellis Auctions building on 99 in the Katy area often, and on weekends, I see a **lot** of people picking up their orders. Far more than I would have expected although when you look at the number of items in the inventory, it becomes somewhat obvious why this could be the case. So I created an account and just watched a few auctions. These are confusing (neither good nor bad) signs:
+## Architecture
 
-1. Website does not list what closing prices were even if you had the link to the item.
-2. A few items that supposedly closed "came back" a day or two later. Were there that many returns? Are there hidden reserve prices?
-3. The 15% buyer's premium is not added to the displayed cost which gives you a false sense of a "deal" when comparing with other retailers.
+This solution consists of two main components:
 
-The only way to draw conclusions is to have data, and that's the motivation for this project.
+1. **NellisScanner.Core**: .NET 9 class library for parsing Nellis Auction data, containing the data models and parsing logic.
+2. **NellisScanner.Web**: ASP.NET Core 9 Blazor Server application that uses the core library and provides a web interface.
 
-## Philosophy
+## Requirements
 
-This is my personal test project to go full vibe coding. I am going to use agentic AI via GitHub Copilot with Claude 3.7 as much as possible. I will list areas where I struggled with.
+- [.NET 9 SDK](https://dotnet.microsoft.com/download)
+- [Docker](https://www.docker.com/products/docker-desktop) and Docker Compose
 
-## References
+## Running the Application
 
-1. This [repository](https://github.com/Brudderbot/nellisAuction) revealed the hidden query parameter that returns data in JSON instead of HTML: `&_data=routes%2Fsearch`. I will probably be taking a look at the cookie usage as I see how important that is for the API.
+### Using Docker Compose (Recommended)
 
-## Notice
+1. Clone the repository:
+   ```
+   git clone https://github.com/yourusername/nellis-scanner.git
+   cd nellis-scanner
+   ```
 
-Relating to Nellis Auction, the website/company/brand, this project reserves no rights relating to it and any content downloaded through the course of this work. Their [terms](https://www.nellisauction.com/terms).
+2. Set environment variables for the PostgreSQL database (optional):
+   ```
+   # Linux/macOS
+   export POSTGRES_USER=your_username
+   export POSTGRES_PASSWORD=your_secure_password
+
+   # Windows (PowerShell)
+   $env:POSTGRES_USER="your_username"
+   $env:POSTGRES_PASSWORD="your_secure_password"
+   ```
+
+   If you don't set these variables, the default values will be used:
+   - Username: nellis_user
+   - Password: nellis_password
+
+3. Build and start the containers:
+   ```
+   docker-compose up -d
+   ```
+
+4. Access the application at:
+   - Web UI: http://localhost:8080
+   - Hangfire Dashboard: http://localhost:8080/hangfire
+
+### Development Setup
+
+1. Clone the repository and navigate to the project directory.
+
+2. Install the .NET EF Core tools if you haven't already:
+   ```
+   dotnet tool install --global dotnet-ef
+   ```
+
+3. Start a PostgreSQL database (using Docker or install locally).
+
+4. Update the connection string in `src/NellisScanner.Web/appsettings.json` if needed.
+
+5. Run database migrations:
+   ```
+   cd src/NellisScanner.Web
+   dotnet ef database update
+   ```
+
+6. Run the application:
+   ```
+   dotnet run
+   ```
+
+## License
+
+[MIT](LICENSE)

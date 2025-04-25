@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: src/NellisScanner.Web/Dockerfile
+    ports:
+      - "8080:80"
+      - "8443:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=nellis_scanner;Username=${POSTGRES_USER:-nellis_user};Password=${POSTGRES_PASSWORD:-nellis_password};
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - nellis-network
+
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-nellis_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-nellis_password}
+      - POSTGRES_DB=nellis_scanner
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - nellis-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nellis_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  nellis-network:
+    driver: bridge
+
+volumes:
+  postgres-data:

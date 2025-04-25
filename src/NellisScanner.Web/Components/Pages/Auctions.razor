@@ -1,0 +1,275 @@
+@page "/auctions"
+@using Microsoft.EntityFrameworkCore
+@using NellisScanner.Core.Models
+@using NellisScanner.Web.Data
+@using System.Globalization
+@inject NellisScannerDbContext DbContext
+
+<PageTitle>Nellis Auctions</PageTitle>
+
+<h1>Electronics Auctions</h1>
+
+<div class="container">
+    <div class="row mb-3">
+        <div class="col">
+            <div class="input-group">
+                <input class="form-control" @bind="SearchTerm" @bind:event="oninput" placeholder="Search by title..." />
+                <button class="btn btn-primary" @onclick="ApplyFilters">Search</button>
+                <button class="btn btn-secondary" @onclick="ClearFilters">Clear</button>
+            </div>
+        </div>
+        <div class="col">
+            <select class="form-select" @bind="SortBy">
+                <option value="retail_desc">Retail Price (High to Low)</option>
+                <option value="retail_asc">Retail Price (Low to High)</option>
+                <option value="current_desc">Current Price (High to Low)</option>
+                <option value="current_asc">Current Price (Low to High)</option>
+                <option value="closing_soon">Closing Soon</option>
+                <option value="bid_count">Most Bids</option>
+            </select>
+        </div>
+    </div>
+    
+    @if (Loading)
+    {
+        <div class="d-flex justify-content-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else if (Products == null || !Products.Any())
+    {
+        <div class="alert alert-info">No auctions found.</div>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            @foreach (var product in Products)
+            {
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between">
+                            <span class="badge @(product.MarketStatus == "open" ? "bg-success" : "bg-secondary")">
+                                @product.MarketStatus
+                            </span>
+                            <span class="badge bg-info">ID: @product.Id</span>
+                        </div>
+                        
+                        @if (product.Photos != null && product.Photos.Any())
+                        {
+                            <img src="@product.Photos.First().Url" class="card-img-top" alt="@product.Title" style="max-height: 200px; object-fit: contain;">
+                        }
+                        
+                        <div class="card-body">
+                            <h5 class="card-title">@product.Title</h5>
+                            <p class="card-text">
+                                <small>Inventory: @product.InventoryNumber</small>
+                            </p>
+                            
+                            @if (product.Grade != null)
+                            {
+                                <div class="mb-2">
+                                    <span class="badge bg-warning text-dark">Rating: @product.Grade.Rating</span>
+                                    @if (product.Grade.ConditionType != null)
+                                    {
+                                        <span class="badge bg-info">@product.Grade.ConditionType.Description</span>
+                                    }
+                                </div>
+                            }
+                            
+                            <p class="text-muted">@product.Notes</p>
+                        </div>
+                        
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">
+                                <strong>Retail Price:</strong> @product.RetailPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                            </li>
+                            <li class="list-group-item">
+                                <strong>Current Price:</strong> @product.CurrentPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                            </li>
+                            <li class="list-group-item">
+                                <strong>Bids:</strong> @product.BidCount
+                            </li>
+                            <li class="list-group-item">
+                                <strong>Closes:</strong> @product.CloseTime.ToLocalTime().ToString("g")
+                            </li>
+                        </ul>
+                        
+                        <div class="card-footer">
+                            <button class="btn btn-outline-primary" @onclick="() => ShowPriceHistory(product.Id)">View Price History</button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+        
+        <div class="d-flex justify-content-between mt-4">
+            <button class="btn btn-outline-secondary" disabled="@(CurrentPage <= 0)" @onclick="PreviousPage">Previous</button>
+            <span>Page @(CurrentPage + 1) of @TotalPages</span>
+            <button class="btn btn-outline-secondary" disabled="@(CurrentPage >= TotalPages - 1)" @onclick="NextPage">Next</button>
+        </div>
+    }
+</div>
+
+@if (SelectedProductId != null && PriceHistoryVisible)
+{
+    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Price History</h5>
+                    <button type="button" class="btn-close" @onclick="HidePriceHistory"></button>
+                </div>
+                <div class="modal-body">
+                    @if (PriceHistory != null && PriceHistory.Any())
+                    {
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Price</th>
+                                    <th>Bids</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var history in PriceHistory)
+                                {
+                                    <tr>
+                                        <td>@history.RecordedAt.ToLocalTime().ToString("g")</td>
+                                        <td>@history.Price.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
+                                        <td>@history.BidCount</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">No price history found.</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="HidePriceHistory">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Product>? Products { get; set; }
+    private bool Loading { get; set; } = true;
+    private int CurrentPage { get; set; } = 0;
+    private int PageSize { get; set; } = 12;
+    private int TotalPages { get; set; } = 1;
+    private string SearchTerm { get; set; } = "";
+    private string SortBy { get; set; } = "retail_desc";
+    
+    // Price history modal
+    private int? SelectedProductId { get; set; }
+    private bool PriceHistoryVisible { get; set; } = false;
+    private List<PriceHistory>? PriceHistory { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProductsAsync();
+    }
+
+    private async Task LoadProductsAsync()
+    {
+        Loading = true;
+        try
+        {
+            // Create a query for products
+            IQueryable<Product> query = DbContext.Products;
+
+            // Apply search filter if provided
+            if (!string.IsNullOrWhiteSpace(SearchTerm))
+            {
+                query = query.Where(p => p.Title != null && p.Title.Contains(SearchTerm));
+            }
+
+            // Apply sorting
+            query = SortBy switch
+            {
+                "retail_desc" => query.OrderByDescending(p => p.RetailPrice),
+                "retail_asc" => query.OrderBy(p => p.RetailPrice),
+                "current_desc" => query.OrderByDescending(p => p.CurrentPrice),
+                "current_asc" => query.OrderBy(p => p.CurrentPrice),
+                "closing_soon" => query.OrderBy(p => p.CloseTime),
+                "bid_count" => query.OrderByDescending(p => p.BidCount),
+                _ => query.OrderByDescending(p => p.RetailPrice)
+            };
+
+            // Get total count for pagination
+            var totalCount = await query.CountAsync();
+            TotalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
+
+            // Apply pagination
+            Products = await query
+                .Skip(CurrentPage * PageSize)
+                .Take(PageSize)
+                .ToListAsync();
+        }
+        catch (Exception)
+        {
+            // In a real app, you would log the exception
+            // For now, just show an empty list
+            Products = new List<Product>();
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        CurrentPage = 0;
+        await LoadProductsAsync();
+    }
+
+    private async Task ClearFilters()
+    {
+        SearchTerm = "";
+        SortBy = "retail_desc";
+        CurrentPage = 0;
+        await LoadProductsAsync();
+    }
+
+    private async Task PreviousPage()
+    {
+        if (CurrentPage > 0)
+        {
+            CurrentPage--;
+            await LoadProductsAsync();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (CurrentPage < TotalPages - 1)
+        {
+            CurrentPage++;
+            await LoadProductsAsync();
+        }
+    }
+
+    private async Task ShowPriceHistory(int productId)
+    {
+        SelectedProductId = productId;
+        PriceHistory = await DbContext.PriceHistory
+            .Where(ph => ph.ProductId == productId)
+            .OrderByDescending(ph => ph.RecordedAt)
+            .ToListAsync();
+        PriceHistoryVisible = true;
+    }
+
+    private void HidePriceHistory()
+    {
+        PriceHistoryVisible = false;
+        SelectedProductId = null;
+        PriceHistory = null;
+    }
+}

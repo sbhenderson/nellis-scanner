@@ -1,0 +1,254 @@
+﻿@page "/"
+@using Microsoft.EntityFrameworkCore
+@using NellisScanner.Core.Models
+@using NellisScanner.Web.Data
+@using System.Globalization
+@inject NellisScannerDbContext DbContext
+
+<PageTitle>Nellis Scanner - Home</PageTitle>
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-4">Nellis Auctions Dashboard</h1>
+            <p class="lead">Track and monitor electronics auctions from Nellis Auctions.</p>
+        </div>
+    </div>
+
+    @if (Loading)
+    {
+        <div class="d-flex justify-content-center my-5">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Active Auctions</h5>
+                        <h2 class="display-4">@ActiveAuctionsCount</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Closing Soon</h5>
+                        <h2 class="display-4">@ClosingSoonCount</h2>
+                        <p class="card-text">Ending within 30 minutes</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Value</h5>
+                        <h2>@TotalRetailValue.ToString("C0", CultureInfo.GetCultureInfo("en-US"))</h2>
+                        <p class="card-text">Retail price</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-dark h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Current Bids</h5>
+                        <h2>@TotalCurrentBids.ToString("C0", CultureInfo.GetCultureInfo("en-US"))</h2>
+                        <p class="card-text">Current price</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Highest Value Auctions</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (TopValueAuctions.Any())
+                        {
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Retail Price</th>
+                                        <th>Current Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var auction in TopValueAuctions)
+                                    {
+                                        <tr>
+                                            <td><a href="auctions" title="@auction.Title">@TruncateString(auction.Title, 30)</a></td>
+                                            <td>@auction.RetailPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
+                                            <td>@auction.CurrentPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">No auctions available</div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Closing Soon</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (ClosingSoonAuctions.Any())
+                        {
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Current Price</th>
+                                        <th>Closes In</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var auction in ClosingSoonAuctions)
+                                    {
+                                        <tr>
+                                            <td><a href="auctions" title="@auction.Title">@TruncateString(auction.Title, 30)</a></td>
+                                            <td>@auction.CurrentPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
+                                            <td>@FormatTimeRemaining(auction.CloseTime)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">No auctions closing soon</div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Last Updated</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-0">Data last refreshed: @(LastUpdated?.ToLocalTime().ToString("g") ?? "Never")</p>
+                    </div>
+                    <div class="card-footer">
+                        <a href="auctions" class="btn btn-primary">View All Auctions</a>
+                        <a href="/hangfire" target="_blank" class="btn btn-outline-secondary">View Background Jobs</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool Loading { get; set; } = true;
+    private int ActiveAuctionsCount { get; set; }
+    private int ClosingSoonCount { get; set; }
+    private decimal TotalRetailValue { get; set; }
+    private decimal TotalCurrentBids { get; set; }
+    private List<Product> TopValueAuctions { get; set; } = new();
+    private List<Product> ClosingSoonAuctions { get; set; } = new();
+    private DateTimeOffset? LastUpdated { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardDataAsync();
+    }
+
+    private async Task LoadDashboardDataAsync()
+    {
+        try
+        {
+            // Get active auctions count
+            ActiveAuctionsCount = await DbContext.Products
+                .Where(p => !p.IsClosed)
+                .CountAsync();
+
+            // Get auctions closing within 30 minutes
+            var thirtyMinutesFromNow = DateTimeOffset.UtcNow.AddMinutes(30);
+            ClosingSoonCount = await DbContext.Products
+                .Where(p => !p.IsClosed && p.CloseTime <= thirtyMinutesFromNow)
+                .CountAsync();
+
+            // Get total retail value and current bids
+            var totals = await DbContext.Products
+                .Where(p => !p.IsClosed)
+                .GroupBy(p => 1)
+                .Select(g => new { 
+                    RetailValue = g.Sum(p => p.RetailPrice),
+                    CurrentBids = g.Sum(p => p.CurrentPrice)
+                })
+                .FirstOrDefaultAsync();
+
+            TotalRetailValue = totals?.RetailValue ?? 0;
+            TotalCurrentBids = totals?.CurrentBids ?? 0;
+
+            // Get top 5 auctions by retail price
+            TopValueAuctions = await DbContext.Products
+                .Where(p => !p.IsClosed)
+                .OrderByDescending(p => p.RetailPrice)
+                .Take(5)
+                .ToListAsync();
+
+            // Get top 5 auctions closing soon
+            ClosingSoonAuctions = await DbContext.Products
+                .Where(p => !p.IsClosed)
+                .OrderBy(p => p.CloseTime)
+                .Take(5)
+                .ToListAsync();
+
+            // Get last updated time (most recent price history entry)
+            LastUpdated = await DbContext.PriceHistory
+                .OrderByDescending(ph => ph.RecordedAt)
+                .Select(ph => ph.RecordedAt)
+                .FirstOrDefaultAsync();
+        }
+        catch (Exception)
+        {
+            // Handle any errors (in a real app you would log this)
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private string TruncateString(string? input, int maxLength)
+    {
+        if (string.IsNullOrEmpty(input) || input.Length <= maxLength)
+            return input ?? string.Empty;
+            
+        return input.Substring(0, maxLength) + "...";
+    }
+
+    private string FormatTimeRemaining(DateTimeOffset closeTime)
+    {
+        var timeRemaining = closeTime - DateTimeOffset.UtcNow;
+        
+        if (timeRemaining.TotalMinutes < 1)
+            return "< 1 min";
+            
+        if (timeRemaining.TotalHours < 1)
+            return $"{timeRemaining.Minutes} min";
+            
+        if (timeRemaining.TotalDays < 1)
+            return $"{(int)timeRemaining.TotalHours}h {timeRemaining.Minutes}m";
+            
+        return $"{(int)timeRemaining.TotalDays}d {timeRemaining.Hours}h";
+    }
+}
