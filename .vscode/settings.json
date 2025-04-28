@@ -1,0 +1,8 @@
+{
+    "cSpell.words": [
+        "Nellis"
+    ],
+    "chat.tools.autoApprove": true,
+    "chat.agent.maxRequests": 100000,
+    "chat.useFileStorage": true
+}
