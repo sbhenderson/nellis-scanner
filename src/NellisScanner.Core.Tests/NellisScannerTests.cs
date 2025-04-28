@@ -41,7 +41,7 @@ public class NellisScannerTests
         // First get an auction ID from the search
         var products = await _scanner.GetElectronicsHighToLowAsync();
         var productId = products.Products.First().Id;
-        var productTitle = products.Products.First().Title;
+        var productTitle = products.Products.First().Title ?? string.Empty;
         
         // Act
         var result = await _scanner.GetAuctionPriceInfoAsync(productId, productTitle);
@@ -71,7 +71,7 @@ public class TestLogger<T> : ILogger<T>
         _output = output;
     }
 
-    public IDisposable BeginScope<TState>(TState state) => NullScope.Instance;
+    IDisposable ILogger.BeginScope<TState>(TState state) => NullScope.Instance;
 
     public bool IsEnabled(LogLevel logLevel) => true;
 
