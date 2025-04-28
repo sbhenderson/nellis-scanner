@@ -1,10 +1,14 @@
 # Nellis Scanner
 
-A .NET 9 application for tracking electronics auctions on Nellis Auctions.
+A .NET 9 application for tracking auctions on Nellis Auctions.
+
+## Foreword
+
+This repository is 99% agentic AI using GitHub Copilot with Claude Sonnet 3.7. This is merely a test project.
 
 ## Features
 
-- **Real-time Auction Monitoring**: Tracks electronics auctions from Nellis Auctions with retail price high-to-low sorting.
+- **Real-time Auction Monitoring**: Tracks auctions from Nellis Auctions with retail price high-to-low sorting.
 - **Price History Tracking**: Records price and bid history for auctions over time.
 - **Automatic Scanning**: Scans for new auctions every 5 minutes, with more frequent checks for auctions closing soon.
 - **Web Interface**: Blazor Server-rendered UI for viewing current auctions and their price history.
@@ -26,17 +30,21 @@ This solution consists of two main components:
 ### Using Docker Compose (Recommended)
 
 1. Clone the repository:
-   ```
+
+   ```sh
    git clone https://github.com/yourusername/nellis-scanner.git
    cd nellis-scanner
    ```
 
 2. Set environment variables for the PostgreSQL database (optional):
-   ```
+
+   ```sh
    # Linux/macOS
    export POSTGRES_USER=your_username
    export POSTGRES_PASSWORD=your_secure_password
+   ```
 
+   ```powershell
    # Windows (PowerShell)
    $env:POSTGRES_USER="your_username"
    $env:POSTGRES_PASSWORD="your_secure_password"
@@ -47,8 +55,9 @@ This solution consists of two main components:
    - Password: nellis_password
 
 3. Build and start the containers:
-   ```
-   docker-compose up -d
+
+   ```sh
+   docker compose up -d
    ```
 
 4. Access the application at:
@@ -60,7 +69,8 @@ This solution consists of two main components:
 1. Clone the repository and navigate to the project directory.
 
 2. Install the .NET EF Core tools if you haven't already:
-   ```
+
+   ```sh
    dotnet tool install --global dotnet-ef
    ```
 
@@ -69,13 +79,15 @@ This solution consists of two main components:
 4. Update the connection string in `src/NellisScanner.Web/appsettings.json` if needed.
 
 5. Run database migrations:
-   ```
+
+   ```sh
    cd src/NellisScanner.Web
    dotnet ef database update
    ```
 
 6. Run the application:
-   ```
+
+   ```sh
    dotnet run
    ```
 
