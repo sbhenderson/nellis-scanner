@@ -40,12 +40,12 @@ public class NellisScanner
     /// <returns>SearchResponse containing auction products</returns>
     public async Task<SearchResponse> GetElectronicsHighToLowAsync(
         int page = 0, 
-        string location = "Houston, TX",
+        string location = "Katy",
         CancellationToken cancellationToken = default)
     {
         try
         {
-            string url = $"https://www.nellisauction.com/search?query=&Taxonomy+Level+1=Electronics&sortBy=retail_price_desc&page={page}&_data=routes%2Fsearch";
+            string url = $"https://www.nellisauction.com/search?query=&Taxonomy+Level+1=Electronics&sortBy=retail_price_desc&Location+Name={location}&page={page}&_data=routes%2Fsearch";
             _logger.LogInformation("Fetching electronics data from page {Page}", page);
             
             var response = await _httpClient.GetFromJsonAsync<SearchResponse>(url, _jsonOptions, cancellationToken);
