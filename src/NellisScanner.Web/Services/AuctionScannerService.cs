@@ -26,12 +26,24 @@ public class AuctionScannerService
     /// </summary>
     public async Task ScanElectronicsAsync(CancellationToken cancellationToken = default)
     {
+        await ScanCategoryAsync(Category.Electronics, cancellationToken);
+    }
+
+    /// <summary>
+    /// Scans auctions from a specific category and stores them in the database
+    /// </summary>
+    public async Task ScanCategoryAsync(Category category, CancellationToken cancellationToken = default)
+    {
         try
         {
-            _logger.LogInformation("Starting scan of electronics auctions");
+            _logger.LogInformation("Starting scan of {Category} auctions", category);
             
             // Get first page of auctions
-            var response = await _nellisScanner.GetElectronicsHighToLowAsync(0, cancellationToken: cancellationToken);
+            var response = await _nellisScanner.GetAuctionItemsAsync(
+                category: category,
+                pageNumber: 0,
+                pageSize: 120,
+                cancellationToken: cancellationToken);
             
             // Process products from first page
             await ProcessProductsAsync(response.Products, cancellationToken);
@@ -42,16 +54,20 @@ public class AuctionScannerService
                 int totalPages = Math.Min(response.Algolia.NumberOfPages, 5); // Limit to 5 pages to avoid too many requests
                 for (int page = 1; page < totalPages; page++)
                 {
-                    response = await _nellisScanner.GetElectronicsHighToLowAsync(page, cancellationToken: cancellationToken);
+                    response = await _nellisScanner.GetAuctionItemsAsync(
+                        category: category,
+                        pageNumber: page,
+                        pageSize: 120,
+                        cancellationToken: cancellationToken);
                     await ProcessProductsAsync(response.Products, cancellationToken);
                 }
             }
             
-            _logger.LogInformation("Completed scan of electronics auctions");
+            _logger.LogInformation("Completed scan of {Category} auctions", category);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error scanning electronics auctions");
+            _logger.LogError(ex, "Error scanning {Category} auctions", category);
         }
     }
 

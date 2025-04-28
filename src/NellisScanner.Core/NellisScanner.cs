@@ -4,6 +4,8 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using NellisScanner.Core.Models;
 using System.Text.RegularExpressions;
+using System.Web;
+using System.Collections.Specialized;
 
 namespace NellisScanner.Core;
 
@@ -32,21 +34,45 @@ public class NellisScanner
     }
     
     /// <summary>
-    /// Fetches current auction results for Electronics sorted by retail price (high to low)
+    /// Fetches auction results with specified category, sorting, and pagination
     /// </summary>
-    /// <param name="page">Page number starting from 0</param>
-    /// <param name="location">Location name, default is "Houston, TX"</param>
+    /// <param name="category">Category to filter by (default All)</param>
+    /// <param name="pageNumber">Zero-based page number</param>
+    /// <param name="pageSize">Number of items per page</param>
+    /// <param name="location">Location name</param>
+    /// <param name="sortBy">Sort order (default retail_price_desc)</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>SearchResponse containing auction products</returns>
-    public async Task<SearchResponse> GetElectronicsHighToLowAsync(
-        int page = 0, 
+    public async Task<SearchResponse> GetAuctionItemsAsync(
+        Category category = Category.Electronics, 
+        int pageNumber = 0,
+        int pageSize = 120,
         string location = "Katy",
+        string sortBy = "retail_price_desc",
         CancellationToken cancellationToken = default)
     {
         try
         {
-            string url = $"https://www.nellisauction.com/search?query=&Taxonomy+Level+1=Electronics&sortBy=retail_price_desc&Location+Name={location}&page={page}&_data=routes%2Fsearch";
-            _logger.LogInformation("Fetching electronics data from page {Page}", page);
+            // Build query parameters dictionary
+            var queryParams = new Dictionary<string, string>
+            {
+                ["query"] = string.Empty,
+                ["sortBy"] = sortBy,
+                ["Location+Name"] = location,
+                [UrlHelpers.GetPaginationParameter(pageSize, pageNumber)] = string.Empty,
+                ["_data"] = "routes%2Fsearch"
+            };
+
+            // Add category filter if not "All"
+            if (category != Category.All)
+            {
+                queryParams["Taxonomy+Level+1"] = UrlHelpers.GetCategoryTaxonomyParameter(category);
+            }
+            
+            // Build the URL
+            string url = $"https://www.nellisauction.com/search?{BuildQueryString(queryParams)}";
+            _logger.LogInformation("Fetching {Category} auctions data from page {PageNumber} (size: {PageSize})", 
+                category.GetDescription(), pageNumber, pageSize);
             
             var response = await _httpClient.GetFromJsonAsync<SearchResponse>(url, _jsonOptions, cancellationToken);
             if (response == null)
@@ -59,9 +85,40 @@ public class NellisScanner
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error fetching electronics data from page {Page}", page);
+            _logger.LogError(ex, "Error fetching {Category} data from page {PageNumber}", category, pageNumber);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Fetches current auction results for Electronics sorted by retail price (high to low)
+    /// This method is kept for backward compatibility
+    /// </summary>
+    /// <param name="page">Page number starting from 0</param>
+    /// <param name="location">Location name, default is "Katy"</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>SearchResponse containing auction products</returns>
+    public async Task<SearchResponse> GetElectronicsHighToLowAsync(
+        int page = 0, 
+        string location = "Katy",
+        CancellationToken cancellationToken = default)
+    {
+        return await GetAuctionItemsAsync(
+            category: Category.Electronics,
+            pageNumber: page,
+            location: location,
+            sortBy: "retail_price_desc",
+            cancellationToken: cancellationToken);
+    }
+
+    /// <summary>
+    /// Builds a query string from a dictionary of parameters
+    /// </summary>
+    private string BuildQueryString(Dictionary<string, string> parameters)
+    {
+        return string.Join("&", parameters.Select(kvp => 
+            string.IsNullOrEmpty(kvp.Value) ? HttpUtility.UrlEncode(kvp.Key) : 
+            $"{HttpUtility.UrlEncode(kvp.Key)}={HttpUtility.UrlEncode(kvp.Value)}"));
     }
     
     /// <summary>
