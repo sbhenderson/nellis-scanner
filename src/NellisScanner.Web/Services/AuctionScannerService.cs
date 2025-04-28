@@ -56,41 +56,133 @@ public class AuctionScannerService
     }
 
     /// <summary>
-    /// Monitors auctions closing soon and updates their prices more frequently
+    /// Monitors auctions that are close to closing to track final prices
     /// </summary>
     public async Task MonitorClosingAuctionsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            _logger.LogInformation("Monitoring auctions closing soon");
+            _logger.LogInformation("Monitoring auctions that are closing soon");
             
             // Create a scope to use the DbContext
             using var scope = _scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<NellisScannerDbContext>();
             
-            // Get auctions closing within the next 30 minutes
-            var closingTime = DateTimeOffset.UtcNow.AddMinutes(30);
-            var closingProducts = await dbContext.Products
-                .Where(p => p.CloseTime <= closingTime && !p.IsClosed)
+            // Get auctions that are closing within the next 30 minutes
+            var thirtyMinutesFromNow = DateTimeOffset.UtcNow.AddMinutes(30);
+            var now = DateTimeOffset.UtcNow;
+            
+            var closingAuctions = await dbContext.Auctions
+                .Where(a => a.State == AuctionState.Active && 
+                           a.CloseTime > now && 
+                           a.CloseTime <= thirtyMinutesFromNow)
                 .ToListAsync(cancellationToken);
             
-            _logger.LogInformation("Found {Count} auctions closing within 30 minutes", closingProducts.Count);
+            _logger.LogInformation("Found {Count} auctions closing within 30 minutes", closingAuctions.Count);
             
-            foreach (var product in closingProducts)
+            // Update each auction's current price
+            foreach (var auction in closingAuctions)
             {
-                // Check specific product for updates
-                var freshProduct = await _nellisScanner.GetProductAsync(product.Id, cancellationToken);
-                if (freshProduct != null)
+                try
                 {
-                    await UpdateProductAsync(freshProduct, cancellationToken);
+                    var priceInfo = await _nellisScanner.GetAuctionPriceInfoAsync(
+                        auction.Id, auction.Title ?? "", cancellationToken);
+                    
+                    auction.CurrentPrice = priceInfo.Price;
+                    auction.LastUpdated = DateTimeOffset.UtcNow;
+                    
+                    if (!string.IsNullOrEmpty(priceInfo.InventoryNumber) && 
+                        auction.InventoryNumber != priceInfo.InventoryNumber)
+                    {
+                        auction.InventoryNumber = priceInfo.InventoryNumber;
+                        await EnsureInventoryExistsAsync(dbContext, priceInfo.InventoryNumber, auction.Title, cancellationToken);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error updating auction {Id}", auction.Id);
                 }
             }
             
-            _logger.LogInformation("Completed monitoring auctions closing soon");
+            await dbContext.SaveChangesAsync(cancellationToken);
+            
+            // Process recently closed auctions
+            await ProcessClosedAuctionsAsync(cancellationToken);
+            
+            _logger.LogInformation("Completed monitoring of closing auctions");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error monitoring closing auctions");
+        }
+    }
+
+    /// <summary>
+    /// Processes recently closed auctions to get final prices
+    /// </summary>
+    private async Task ProcessClosedAuctionsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Processing recently closed auctions");
+            
+            // Create a scope to use the DbContext
+            using var scope = _scopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<NellisScannerDbContext>();
+            
+            // Get auctions that are still active but past their close time
+            var dayAgo = DateTimeOffset.UtcNow.AddDays(-1);
+            var potentiallyClosedAuctions = await dbContext.Auctions
+                .Where(a => a.State == AuctionState.Active && 
+                           a.CloseTime < DateTimeOffset.UtcNow && 
+                           a.CloseTime > dayAgo)
+                .ToListAsync(cancellationToken);
+            
+            _logger.LogInformation("Found {Count} potentially closed auctions to update", potentiallyClosedAuctions.Count);
+            
+            foreach (var auction in potentiallyClosedAuctions)
+            {
+                // Get final price from product page
+                try
+                {
+                    var priceInfo = await _nellisScanner.GetAuctionPriceInfoAsync(
+                        auction.Id, auction.Title ?? "", cancellationToken);
+                    
+                    // Update the auction with the final price if it's closed
+                    if (priceInfo.State == AuctionState.Closed)
+                    {
+                        auction.State = AuctionState.Closed;
+                        auction.FinalPrice = priceInfo.Price;
+                        auction.LastUpdated = DateTimeOffset.UtcNow;
+                        
+                        // Update the inventory last seen date
+                        if (!string.IsNullOrEmpty(priceInfo.InventoryNumber))
+                        {
+                            var inventory = await EnsureInventoryExistsAsync(
+                                dbContext, priceInfo.InventoryNumber, auction.Title, cancellationToken);
+                            
+                            if (inventory != null)
+                            {
+                                inventory.LastSeen = DateTimeOffset.UtcNow;
+                            }
+                        }
+                        
+                        _logger.LogInformation("Updated closed auction {Id} with final price {Price}", 
+                            auction.Id, auction.FinalPrice);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error updating auction {Id}", auction.Id);
+                }
+            }
+            
+            await dbContext.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Completed processing closed auctions");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing closed auctions");
         }
     }
     
@@ -116,65 +208,147 @@ public class AuctionScannerService
         
         try
         {
-            // Check if product already exists in database
-            var existingProduct = await dbContext.Products
-                .Include(p => p.PriceHistory.OrderByDescending(ph => ph.RecordedAt).Take(1))
-                .FirstOrDefaultAsync(p => p.Id == product.Id, cancellationToken);
+            // Check if auction already exists in database
+            var existingAuction = await dbContext.Auctions
+                .FirstOrDefaultAsync(a => a.Id == product.Id, cancellationToken);
             
-            if (existingProduct != null)
+            if (existingAuction != null)
             {
-                // Product exists, update it
-                existingProduct.Title = product.Title;
-                existingProduct.CurrentPrice = product.CurrentPrice;
-                existingProduct.BidCount = product.BidCount;
-                existingProduct.RetailPrice = product.RetailPrice;
-                existingProduct.Notes = product.Notes;
-                existingProduct.IsClosed = product.IsClosed;
-                existingProduct.MarketStatus = product.MarketStatus;
-                existingProduct.OpenTime = product.OpenTime;
-                existingProduct.CloseTime = product.CloseTime;
-                existingProduct.InitialCloseTime = product.InitialCloseTime;
-                existingProduct.ExtensionInterval = product.ExtensionInterval;
-                existingProduct.ProjectExtended = product.ProjectExtended;
+                // Auction exists, update it
+                existingAuction.Title = product.Title;
+                existingAuction.RetailPrice = product.RetailPrice;
+                existingAuction.CurrentPrice = product.CurrentPrice;
+                existingAuction.BidCount = product.BidCount;
+                existingAuction.State = product.IsClosed ? AuctionState.Closed : AuctionState.Active;
+                existingAuction.CloseTime = product.CloseTime;
+                existingAuction.LastUpdated = DateTimeOffset.UtcNow;
                 
-                // Check if price or bid count changed to add a new price history entry
-                var latestHistory = existingProduct.PriceHistory.FirstOrDefault();
-                if (latestHistory == null || 
-                    latestHistory.Price != product.CurrentPrice || 
-                    latestHistory.BidCount != product.BidCount)
+                // Set location if available
+                if (product.Location != null)
                 {
-                    // Add new price history entry
-                    var priceHistory = new PriceHistory
+                    existingAuction.Location = $"{product.Location.City}, {product.Location.State}";
+                }
+                
+                // Update the inventory if we have an inventory number
+                if (!string.IsNullOrEmpty(product.InventoryNumber) && 
+                    (existingAuction.InventoryNumber != product.InventoryNumber || existingAuction.Inventory == null))
+                {
+                    existingAuction.InventoryNumber = product.InventoryNumber;
+                    await EnsureInventoryExistsAsync(dbContext, product.InventoryNumber, product.Title, cancellationToken);
+                }
+                
+                // If the auction is closed, make sure we get the final price directly from the HTML
+                if (product.IsClosed && existingAuction.State != AuctionState.Closed)
+                {
+                    try
                     {
-                        ProductId = product.Id,
-                        Price = product.CurrentPrice,
-                        BidCount = product.BidCount,
-                        RecordedAt = DateTimeOffset.UtcNow
-                    };
-                    dbContext.PriceHistory.Add(priceHistory);
+                        var priceInfo = await _nellisScanner.GetAuctionPriceInfoAsync(
+                            product.Id, product.Title ?? "", cancellationToken);
+                            
+                        existingAuction.State = AuctionState.Closed;
+                        existingAuction.FinalPrice = priceInfo.Price;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error getting final price for closed auction {ProductId}", product.Id);
+                        existingAuction.FinalPrice = product.CurrentPrice;
+                    }
                 }
             }
             else
             {
-                // Product doesn't exist, add it
-                dbContext.Products.Add(product);
-                
-                // Add initial price history entry
-                var priceHistory = new PriceHistory
+                // Auction doesn't exist, add it
+                var newAuction = new AuctionItem
                 {
-                    ProductId = product.Id,
-                    Price = product.CurrentPrice,
+                    Id = product.Id,
+                    Title = product.Title,
+                    InventoryNumber = product.InventoryNumber,
+                    RetailPrice = product.RetailPrice,
+                    CurrentPrice = product.CurrentPrice,
+                    FinalPrice = product.IsClosed ? product.CurrentPrice : 0, // Initial value for final price
                     BidCount = product.BidCount,
-                    RecordedAt = DateTimeOffset.UtcNow
+                    State = product.IsClosed ? AuctionState.Closed : AuctionState.Active,
+                    OpenTime = product.OpenTime,
+                    CloseTime = product.CloseTime,
+                    LastUpdated = DateTimeOffset.UtcNow
                 };
-                dbContext.PriceHistory.Add(priceHistory);
+                
+                // Set location if available
+                if (product.Location != null)
+                {
+                    newAuction.Location = $"{product.Location.City}, {product.Location.State}";
+                }
+                
+                dbContext.Auctions.Add(newAuction);
+                
+                // Create inventory entry if we have an inventory number
+                if (!string.IsNullOrEmpty(product.InventoryNumber))
+                {
+                    await EnsureInventoryExistsAsync(dbContext, product.InventoryNumber, product.Title, cancellationToken);
+                }
+                
+                // If the auction is closed, try to get the real final price from HTML
+                if (product.IsClosed)
+                {
+                    try
+                    {
+                        var priceInfo = await _nellisScanner.GetAuctionPriceInfoAsync(
+                            product.Id, product.Title ?? "", cancellationToken);
+                            
+                        newAuction.FinalPrice = priceInfo.Price;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error getting final price for new closed auction {ProductId}", product.Id);
+                    }
+                }
             }
             
             await dbContext.SaveChangesAsync(cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating product {ProductId}", product.Id);
+            _logger.LogError(ex, "Error updating auction {ProductId}", product.Id);
         }
+    }
+    
+    /// <summary>
+    /// Ensures that an inventory item exists in the database
+    /// </summary>
+    private async Task<InventoryItem?> EnsureInventoryExistsAsync(
+        NellisScannerDbContext dbContext, 
+        string inventoryNumber, 
+        string? productTitle, 
+        CancellationToken cancellationToken)
+    {
+        var inventory = await dbContext.Inventory
+            .FirstOrDefaultAsync(i => i.InventoryNumber == inventoryNumber, cancellationToken);
+        
+        if (inventory == null)
+        {
+            // Create new inventory item
+            inventory = new InventoryItem
+            {
+                InventoryNumber = inventoryNumber,
+                Description = productTitle,
+                FirstSeen = DateTimeOffset.UtcNow,
+                LastSeen = DateTimeOffset.UtcNow
+            };
+            
+            dbContext.Inventory.Add(inventory);
+        }
+        else
+        {
+            // Update last seen date
+            inventory.LastSeen = DateTimeOffset.UtcNow;
+            
+            // Update description if it's empty and we have a title
+            if (string.IsNullOrEmpty(inventory.Description) && !string.IsNullOrEmpty(productTitle))
+            {
+                inventory.Description = productTitle;
+            }
+        }
+        
+        return inventory;
     }
 }

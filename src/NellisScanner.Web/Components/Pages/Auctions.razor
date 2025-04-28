@@ -1,5 +1,6 @@
 @page "/auctions"
 @using Microsoft.EntityFrameworkCore
+@using NellisScanner.Core
 @using NellisScanner.Core.Models
 @using NellisScanner.Web.Data
 @using System.Globalization
@@ -7,199 +8,151 @@
 
 <PageTitle>Nellis Auctions</PageTitle>
 
-<h1>Electronics Auctions</h1>
+<div class="container mx-auto px-4">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Electronics Auctions</h1>
 
-<div class="container">
-    <div class="row mb-3">
-        <div class="col">
-            <div class="input-group">
-                <input class="form-control" @bind="SearchTerm" @bind:event="oninput" placeholder="Search by title..." />
-                <button class="btn btn-primary" @onclick="ApplyFilters">Search</button>
-                <button class="btn btn-secondary" @onclick="ClearFilters">Clear</button>
+    <div class="mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <div class="flex">
+                    <input type="text" @bind="SearchTerm" @bind:event="oninput" 
+                           class="flex-1 rounded-l border-gray-300 shadow-sm px-4 py-2 focus:ring-blue-500 focus:border-blue-500" 
+                           placeholder="Search by title..." />
+                    <button @onclick="ApplyFilters" 
+                            class="bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition-colors">
+                        Search
+                    </button>
+                    <button @onclick="ClearFilters" 
+                            class="bg-gray-600 text-white px-4 py-2 rounded-r hover:bg-gray-700 transition-colors">
+                        Clear
+                    </button>
+                </div>
             </div>
-        </div>
-        <div class="col">
-            <select class="form-select" @bind="SortBy">
-                <option value="retail_desc">Retail Price (High to Low)</option>
-                <option value="retail_asc">Retail Price (Low to High)</option>
-                <option value="current_desc">Current Price (High to Low)</option>
-                <option value="current_asc">Current Price (Low to High)</option>
-                <option value="closing_soon">Closing Soon</option>
-                <option value="bid_count">Most Bids</option>
-            </select>
+            <div>
+                <select @bind="SortBy" class="w-full rounded border-gray-300 shadow-sm px-4 py-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="retail_desc">Retail Price (High to Low)</option>
+                    <option value="retail_asc">Retail Price (Low to High)</option>
+                    <option value="current_desc">Current Price (High to Low)</option>
+                    <option value="current_asc">Current Price (Low to High)</option>
+                    <option value="closing_soon">Closing Soon</option>
+                    <option value="bid_count">Most Bids</option>
+                </select>
+            </div>
         </div>
     </div>
     
-    @if (Loading)
+    @if (IsLoading)
     {
-        <div class="d-flex justify-content-center">
-            <div class="spinner-border" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
+        <div class="flex justify-center items-center my-12">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
         </div>
     }
-    else if (Products == null || !Products.Any())
+    else if (AuctionItems == null || !AuctionItems.Any())
     {
-        <div class="alert alert-info">No auctions found.</div>
+        <div class="bg-blue-50 text-blue-700 p-4 rounded">No auctions found.</div>
     }
     else
     {
-        <div class="row row-cols-1 row-cols-md-3 g-4">
-            @foreach (var product in Products)
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            @foreach (var auction in AuctionItems)
             {
-                <div class="col">
-                    <div class="card h-100">
-                        <div class="card-header d-flex justify-content-between">
-                            <span class="badge @(product.MarketStatus == "open" ? "bg-success" : "bg-secondary")">
-                                @product.MarketStatus
-                            </span>
-                            <span class="badge bg-info">ID: @product.Id</span>
-                        </div>
+                <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+                    <div class="flex justify-between items-center px-4 py-2 bg-gray-50">
+                        <span class="px-2 py-1 rounded text-xs font-semibold @(auction.State == AuctionState.Active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800")">
+                            @auction.State
+                        </span>
+                        <span class="px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-800">
+                            ID: @auction.Id
+                        </span>
+                    </div>
+                    
+                    <div class="p-4">
+                        <h5 class="text-lg font-semibold text-gray-800 mb-2 line-clamp-2">@auction.Title</h5>
+                        <p class="text-xs text-gray-500 mb-3">
+                            Inventory: @auction.InventoryNumber
+                        </p>
                         
-                        @if (product.Photos != null && product.Photos.Any())
-                        {
-                            <img src="@product.Photos.First().Url" class="card-img-top" alt="@product.Title" style="max-height: 200px; object-fit: contain;">
-                        }
-                        
-                        <div class="card-body">
-                            <h5 class="card-title">@product.Title</h5>
-                            <p class="card-text">
-                                <small>Inventory: @product.InventoryNumber</small>
-                            </p>
-                            
-                            @if (product.Grade != null)
-                            {
-                                <div class="mb-2">
-                                    <span class="badge bg-warning text-dark">Rating: @product.Grade.Rating</span>
-                                    @if (product.Grade.ConditionType != null)
-                                    {
-                                        <span class="badge bg-info">@product.Grade.ConditionType.Description</span>
-                                    }
-                                </div>
-                            }
-                            
-                            <p class="text-muted">@product.Notes</p>
-                        </div>
-                        
-                        <ul class="list-group list-group-flush">
-                            <li class="list-group-item">
-                                <strong>Retail Price:</strong> @product.RetailPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))
-                            </li>
-                            <li class="list-group-item">
-                                <strong>Current Price:</strong> @product.CurrentPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))
-                            </li>
-                            <li class="list-group-item">
-                                <strong>Bids:</strong> @product.BidCount
-                            </li>
-                            <li class="list-group-item">
-                                <strong>Closes:</strong> @product.CloseTime.ToLocalTime().ToString("g")
-                            </li>
-                        </ul>
-                        
-                        <div class="card-footer">
-                            <button class="btn btn-outline-primary" @onclick="() => ShowPriceHistory(product.Id)">View Price History</button>
+                        <div class="space-y-2">
+                            <div class="flex justify-between border-t border-gray-100 pt-2">
+                                <span class="text-sm text-gray-500">Retail Price:</span>
+                                <span class="font-medium">@auction.RetailPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</span>
+                            </div>
+                            <div class="flex justify-between border-t border-gray-100 pt-2">
+                                <span class="text-sm text-gray-500">Current Price:</span>
+                                <span class="font-medium">@auction.CurrentPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</span>
+                            </div>
+                            <div class="flex justify-between border-t border-gray-100 pt-2">
+                                <span class="text-sm text-gray-500">Bids:</span>
+                                <span class="font-medium">@auction.BidCount</span>
+                            </div>
+                            <div class="flex justify-between border-t border-gray-100 pt-2">
+                                <span class="text-sm text-gray-500">Closes:</span>
+                                <span class="font-medium">@auction.CloseTime.ToLocalTime().ToString("g")</span>
+                            </div>
+                            <div class="flex justify-between border-t border-gray-100 pt-2">
+                                <span class="text-sm text-gray-500">Location:</span>
+                                <span class="font-medium">@auction.Location</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             }
         </div>
         
-        <div class="d-flex justify-content-between mt-4">
-            <button class="btn btn-outline-secondary" disabled="@(CurrentPage <= 0)" @onclick="PreviousPage">Previous</button>
-            <span>Page @(CurrentPage + 1) of @TotalPages</span>
-            <button class="btn btn-outline-secondary" disabled="@(CurrentPage >= TotalPages - 1)" @onclick="NextPage">Next</button>
+        <div class="flex justify-between items-center mt-8">
+            <button class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" 
+                    disabled="@(CurrentPage <= 0)" 
+                    @onclick="PreviousPage">
+                Previous
+            </button>
+            <span class="text-gray-700">Page @(CurrentPage + 1) of @TotalPages</span>
+            <button class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" 
+                    disabled="@(CurrentPage >= TotalPages - 1)" 
+                    @onclick="NextPage">
+                Next
+            </button>
         </div>
     }
 </div>
 
-@if (SelectedProductId != null && PriceHistoryVisible)
-{
-    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Price History</h5>
-                    <button type="button" class="btn-close" @onclick="HidePriceHistory"></button>
-                </div>
-                <div class="modal-body">
-                    @if (PriceHistory != null && PriceHistory.Any())
-                    {
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Price</th>
-                                    <th>Bids</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var history in PriceHistory)
-                                {
-                                    <tr>
-                                        <td>@history.RecordedAt.ToLocalTime().ToString("g")</td>
-                                        <td>@history.Price.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
-                                        <td>@history.BidCount</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    }
-                    else
-                    {
-                        <div class="alert alert-info">No price history found.</div>
-                    }
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="HidePriceHistory">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
 @code {
-    private List<Product>? Products { get; set; }
-    private bool Loading { get; set; } = true;
+    private List<AuctionItem>? AuctionItems { get; set; }
+    private bool IsLoading { get; set; } = true;
     private int CurrentPage { get; set; } = 0;
     private int PageSize { get; set; } = 12;
     private int TotalPages { get; set; } = 1;
     private string SearchTerm { get; set; } = "";
     private string SortBy { get; set; } = "retail_desc";
-    
-    // Price history modal
-    private int? SelectedProductId { get; set; }
-    private bool PriceHistoryVisible { get; set; } = false;
-    private List<PriceHistory>? PriceHistory { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadProductsAsync();
+        await LoadAuctionsAsync();
     }
 
-    private async Task LoadProductsAsync()
+    private async Task LoadAuctionsAsync()
     {
-        Loading = true;
+        IsLoading = true;
         try
         {
-            // Create a query for products
-            IQueryable<Product> query = DbContext.Products;
+            // Create a query for auctions
+            IQueryable<AuctionItem> query = DbContext.Auctions;
 
             // Apply search filter if provided
             if (!string.IsNullOrWhiteSpace(SearchTerm))
             {
-                query = query.Where(p => p.Title != null && p.Title.Contains(SearchTerm));
+                query = query.Where(a => a.Title != null && a.Title.Contains(SearchTerm));
             }
 
             // Apply sorting
             query = SortBy switch
             {
-                "retail_desc" => query.OrderByDescending(p => p.RetailPrice),
-                "retail_asc" => query.OrderBy(p => p.RetailPrice),
-                "current_desc" => query.OrderByDescending(p => p.CurrentPrice),
-                "current_asc" => query.OrderBy(p => p.CurrentPrice),
-                "closing_soon" => query.OrderBy(p => p.CloseTime),
-                "bid_count" => query.OrderByDescending(p => p.BidCount),
-                _ => query.OrderByDescending(p => p.RetailPrice)
+                "retail_desc" => query.OrderByDescending(a => a.RetailPrice),
+                "retail_asc" => query.OrderBy(a => a.RetailPrice),
+                "current_desc" => query.OrderByDescending(a => a.CurrentPrice),
+                "current_asc" => query.OrderBy(a => a.CurrentPrice),
+                "closing_soon" => query.OrderBy(a => a.CloseTime),
+                "bid_count" => query.OrderByDescending(a => a.BidCount),
+                _ => query.OrderByDescending(a => a.RetailPrice)
             };
 
             // Get total count for pagination
@@ -207,27 +160,27 @@
             TotalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
 
             // Apply pagination
-            Products = await query
+            AuctionItems = await query
                 .Skip(CurrentPage * PageSize)
                 .Take(PageSize)
                 .ToListAsync();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // In a real app, you would log the exception
-            // For now, just show an empty list
-            Products = new List<Product>();
+            Console.WriteLine($"Error loading auctions: {ex.Message}");
+            AuctionItems = new List<AuctionItem>();
         }
         finally
         {
-            Loading = false;
+            IsLoading = false;
         }
     }
 
     private async Task ApplyFilters()
     {
         CurrentPage = 0;
-        await LoadProductsAsync();
+        await LoadAuctionsAsync();
     }
 
     private async Task ClearFilters()
@@ -235,7 +188,7 @@
         SearchTerm = "";
         SortBy = "retail_desc";
         CurrentPage = 0;
-        await LoadProductsAsync();
+        await LoadAuctionsAsync();
     }
 
     private async Task PreviousPage()
@@ -243,7 +196,7 @@
         if (CurrentPage > 0)
         {
             CurrentPage--;
-            await LoadProductsAsync();
+            await LoadAuctionsAsync();
         }
     }
 
@@ -252,24 +205,7 @@
         if (CurrentPage < TotalPages - 1)
         {
             CurrentPage++;
-            await LoadProductsAsync();
+            await LoadAuctionsAsync();
         }
-    }
-
-    private async Task ShowPriceHistory(int productId)
-    {
-        SelectedProductId = productId;
-        PriceHistory = await DbContext.PriceHistory
-            .Where(ph => ph.ProductId == productId)
-            .OrderByDescending(ph => ph.RecordedAt)
-            .ToListAsync();
-        PriceHistoryVisible = true;
-    }
-
-    private void HidePriceHistory()
-    {
-        PriceHistoryVisible = false;
-        SelectedProductId = null;
-        PriceHistory = null;
     }
 }

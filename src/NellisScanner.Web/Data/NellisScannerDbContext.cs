@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using NellisScanner.Core;
 using NellisScanner.Core.Models;
 
 namespace NellisScanner.Web.Data;
@@ -9,43 +10,93 @@ public class NellisScannerDbContext : DbContext
     {
     }
 
-    public DbSet<Product> Products { get; set; } = null!;
-    public DbSet<PriceHistory> PriceHistory { get; set; } = null!;
+    public DbSet<AuctionItem> Auctions { get; set; } = null!;
+    public DbSet<InventoryItem> Inventory { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<Product>(entity =>
+        modelBuilder.Entity<AuctionItem>(entity =>
         {
             entity.HasKey(p => p.Id);
             entity.Property(p => p.Id).ValueGeneratedNever();  // Use the ID from the API
             entity.Property(p => p.Title).HasMaxLength(500);
-            entity.Property(p => p.InventoryNumber).HasMaxLength(50);
+            entity.Property(p => p.InventoryNumber).HasMaxLength(50).IsRequired(false);
             entity.Property(p => p.RetailPrice).HasColumnType("decimal(18,2)");
             entity.Property(p => p.CurrentPrice).HasColumnType("decimal(18,2)");
-            entity.Property(p => p.Notes).HasMaxLength(2000);
+            entity.Property(p => p.FinalPrice).HasColumnType("decimal(18,2)");
+            entity.Property(p => p.State).HasConversion<string>();
             
-            // Use JSON serialization for complex properties
-            entity.Property(p => p.Grade).HasColumnType("jsonb");
-            entity.Property(p => p.Photos).HasColumnType("jsonb");
-            entity.Property(p => p.Location).HasColumnType("jsonb");
+            // Create an index on inventory number
+            entity.HasIndex(p => p.InventoryNumber);
+            entity.HasIndex(p => p.CloseTime); // Add index on close time for efficient queries
+            
+            // Relationship with Inventory
+            entity.HasOne(a => a.Inventory)
+                .WithMany(i => i.Auctions)
+                .HasForeignKey(a => a.InventoryNumber)
+                .HasPrincipalKey(i => i.InventoryNumber)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
-        modelBuilder.Entity<PriceHistory>(entity =>
+        modelBuilder.Entity<InventoryItem>(entity =>
         {
-            entity.HasKey(ph => ph.Id);
-            entity.Property(ph => ph.Id).UseIdentityColumn();
-            entity.Property(ph => ph.Price).HasColumnType("decimal(18,2)");
+            entity.HasKey(i => i.Id);
+            entity.Property(i => i.Id).UseIdentityColumn();
+            entity.Property(i => i.InventoryNumber).HasMaxLength(50).IsRequired();
+            entity.Property(i => i.Description).HasMaxLength(500);
+            entity.Property(i => i.CategoryName).HasMaxLength(100);
             
-            // Relationship
-            entity.HasOne(ph => ph.Product)
-                .WithMany(p => p.PriceHistory)
-                .HasForeignKey(ph => ph.ProductId)
-                .OnDelete(DeleteBehavior.Cascade);
-            
-            // Create an index on product ID and timestamp
-            entity.HasIndex(ph => new { ph.ProductId, ph.RecordedAt });
+            // Make inventory number unique
+            entity.HasIndex(i => i.InventoryNumber).IsUnique();
         });
     }
+}
+
+/// <summary>
+/// Represents a single auction tracked from Nellis Auction
+/// </summary>
+public class AuctionItem
+{
+    // Primary key - uses Nellis Auction's own ID
+    public int Id { get; set; }
+    
+    // Auction details
+    public string? Title { get; set; }
+    public string? InventoryNumber { get; set; }
+    public decimal RetailPrice { get; set; }
+    public decimal CurrentPrice { get; set; } // Current price during auction
+    public decimal FinalPrice { get; set; } // Final price when auction is closed
+    public AuctionState State { get; set; }
+    public DateTimeOffset OpenTime { get; set; }
+    public DateTimeOffset CloseTime { get; set; }
+    public DateTimeOffset LastUpdated { get; set; }
+    public string? Location { get; set; }
+    public int? BidCount { get; set; } // Track bid count
+    
+    // Navigation property
+    public InventoryItem? Inventory { get; set; }
+}
+
+/// <summary>
+/// Represents a specific inventory item that may appear in multiple auctions
+/// </summary>
+public class InventoryItem
+{
+    // Auto-generated ID
+    public int Id { get; set; }
+    
+    // The inventory number used by Nellis Auction
+    public string InventoryNumber { get; set; } = null!;
+    
+    // Product details
+    public string? Description { get; set; }
+    public string? CategoryName { get; set; }
+    public DateTimeOffset FirstSeen { get; set; }
+    public DateTimeOffset LastSeen { get; set; }
+    
+    // Navigation property
+    public ICollection<AuctionItem> Auctions { get; set; } = new List<AuctionItem>();
 }

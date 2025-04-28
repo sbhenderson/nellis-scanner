@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using NellisScanner.Core.Models;
+using System.Text.RegularExpressions;
 
 namespace NellisScanner.Core;
 
@@ -89,6 +90,108 @@ public class NellisScanner
     }
     
     /// <summary>
+    /// Retrieves auction price information by parsing the HTML product page
+    /// </summary>
+    /// <param name="productId">The ID of the product</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>AuctionPriceInfo containing current or final price and auction state</returns>
+    public async Task<AuctionPriceInfo> GetAuctionPriceInfoAsync(
+        int productId,
+        string productName = "",
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // URL-friendly product name is optional but helps create a valid URL
+            string url;
+            if (!string.IsNullOrWhiteSpace(productName))
+            {
+                // Create URL-friendly name by replacing spaces with dashes and removing special chars
+                var urlFriendlyName = Regex.Replace(productName, @"[^a-zA-Z0-9\s-]", "")
+                    .Replace(" ", "-");
+                url = $"https://www.nellisauction.com/p/{urlFriendlyName}/{productId}";
+            }
+            else
+            {
+                url = $"https://www.nellisauction.com/p/{productId}";
+            }
+            
+            _logger.LogInformation("Fetching HTML page for product ID {ProductId}", productId);
+            
+            var response = await _httpClient.GetAsync(url, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            
+            var html = await response.Content.ReadAsStringAsync(cancellationToken);
+            
+            // Parse HTML to extract price information
+            var priceInfo = ParseHtmlForPriceInfo(html);
+            priceInfo.ProductId = productId;
+            
+            return priceInfo;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching and parsing HTML for product ID {ProductId}", productId);
+            throw;
+        }
+    }
+    
+    /// <summary>
+    /// Parses the HTML content to extract price and auction state
+    /// </summary>
+    /// <param name="html">The HTML content of the product page</param>
+    /// <returns>AuctionPriceInfo with extracted information</returns>
+    private AuctionPriceInfo ParseHtmlForPriceInfo(string html)
+    {
+        var result = new AuctionPriceInfo
+        {
+            TimeRetrieved = DateTimeOffset.UtcNow
+        };
+        
+        // Check if auction is closed ("Won For" or "Ended")
+        var endedMatch = Regex.Match(html, @"<strong class="""">(Ended|Won For)<\/strong>");
+        if (endedMatch.Success)
+        {
+            result.State = AuctionState.Closed;
+            // Look for final price
+            var priceMatch = Regex.Match(html, @"<p class=""text-gray-900 font-semibold line-clamp-1[^>]+>(\$[0-9,]+)<\/p>");
+            if (priceMatch.Success && priceMatch.Groups.Count > 1)
+            {
+                string priceText = priceMatch.Groups[1].Value.Replace("$", "").Replace(",", "");
+                if (decimal.TryParse(priceText, out decimal price))
+                {
+                    result.Price = price;
+                }
+            }
+        }
+        else
+        {
+            // Active auction
+            result.State = AuctionState.Active;
+            
+            // Look for current price
+            var priceMatch = Regex.Match(html, @"<strong class="""">CURRENT PRICE<\/strong>[^<]*<\/p>[^<]*<p[^>]+>(\$[0-9,]+)<\/p>");
+            if (priceMatch.Success && priceMatch.Groups.Count > 1)
+            {
+                string priceText = priceMatch.Groups[1].Value.Replace("$", "").Replace(",", "");
+                if (decimal.TryParse(priceText, out decimal price))
+                {
+                    result.Price = price;
+                }
+            }
+        }
+        
+        // Extract inventory number if present
+        var inventoryMatch = Regex.Match(html, @"<p class=""text-left font-medium"">Inventory Number<\/p>\s*<p>([0-9]+)<\/p>");
+        if (inventoryMatch.Success && inventoryMatch.Groups.Count > 1)
+        {
+            result.InventoryNumber = inventoryMatch.Groups[1].Value;
+        }
+        
+        return result;
+    }
+    
+    /// <summary>
     /// Creates a stream to monitor live updates for a specific product
     /// </summary>
     /// <param name="productId">The ID of the product to monitor</param>
@@ -159,6 +262,21 @@ public class ProductUpdate
     public decimal CurrentPrice { get; set; }
     public int BidCount { get; set; }
     public DateTimeOffset Timestamp { get; set; }
+}
+
+public enum AuctionState
+{
+    Active,
+    Closed
+}
+
+public class AuctionPriceInfo
+{
+    public int ProductId { get; set; }
+    public decimal Price { get; set; }
+    public string? InventoryNumber { get; set; }
+    public AuctionState State { get; set; }
+    public DateTimeOffset TimeRetrieved { get; set; }
 }
 
 /// <summary>

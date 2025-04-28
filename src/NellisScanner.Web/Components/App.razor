@@ -5,7 +5,24 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
-    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
+    <!-- Replace Bootstrap with Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1b6ec2',
+                        secondary: '#6c757d',
+                        success: '#28a745',
+                        info: '#17a2b8',
+                        warning: '#ffc107',
+                        danger: '#dc3545',
+                    },
+                }
+            }
+        }
+    </script>
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["NellisScanner.Web.styles.css"]" />
     <ImportMap />
@@ -13,7 +30,7 @@
     <HeadOutlet />
 </head>
 
-<body>
+<body class="bg-gray-50">
     <Routes />
     <script src="_framework/blazor.web.js"></script>
 </body>

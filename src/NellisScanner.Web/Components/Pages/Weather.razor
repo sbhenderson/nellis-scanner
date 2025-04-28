@@ -3,38 +3,49 @@
 
 <PageTitle>Weather</PageTitle>
 
-<h1>Weather</h1>
+<div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
+    <h1 class="text-3xl font-bold mb-4">Weather</h1>
 
-<p>This component demonstrates showing data.</p>
+    <p class="text-gray-600 mb-6">This component demonstrates showing data.</p>
 
-@if (forecasts == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th aria-label="Temperature in Celsius">Temp. (C)</th>
-                <th aria-label="Temperature in Farenheit">Temp. (F)</th>
-                <th>Summary</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var forecast in forecasts)
-            {
-                <tr>
-                    <td>@forecast.Date.ToShortDateString()</td>
-                    <td>@forecast.TemperatureC</td>
-                    <td>@forecast.TemperatureF</td>
-                    <td>@forecast.Summary</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
+    @if (forecasts == null)
+    {
+        <div class="flex justify-center items-center py-10">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+    }
+    else
+    {
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                <thead class="bg-gray-100 text-gray-700">
+                    <tr>
+                        <th class="py-3 px-4 text-left">Date</th>
+                        <th class="py-3 px-4 text-left" aria-label="Temperature in Celsius">Temp. (C)</th>
+                        <th class="py-3 px-4 text-left" aria-label="Temperature in Farenheit">Temp. (F)</th>
+                        <th class="py-3 px-4 text-left">Summary</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    @foreach (var forecast in forecasts)
+                    {
+                        <tr class="hover:bg-gray-50">
+                            <td class="py-2 px-4">@forecast.Date.ToShortDateString()</td>
+                            <td class="py-2 px-4">@forecast.TemperatureC</td>
+                            <td class="py-2 px-4">@forecast.TemperatureF</td>
+                            <td class="py-2 px-4">
+                                <span class="px-2 py-1 rounded text-sm
+                                    @(GetTemperatureClass(forecast.TemperatureC))">
+                                    @forecast.Summary
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
 
 @code {
     private WeatherForecast[]? forecasts;
@@ -52,6 +63,18 @@ else
             TemperatureC = Random.Shared.Next(-20, 55),
             Summary = summaries[Random.Shared.Next(summaries.Length)]
         }).ToArray();
+    }
+
+    private string GetTemperatureClass(int temp)
+    {
+        return temp switch
+        {
+            0 => "bg-blue-100 text-blue-800",
+            10 => "bg-cyan-100 text-cyan-800",
+            20 => "bg-green-100 text-green-800",
+            30 => "bg-yellow-100 text-yellow-800",
+            _ => "bg-red-100 text-red-800"
+        };
     }
 
     private class WeatherForecast

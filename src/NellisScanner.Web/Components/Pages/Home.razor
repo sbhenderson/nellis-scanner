@@ -1,5 +1,6 @@
 ﻿@page "/"
 @using Microsoft.EntityFrameworkCore
+@using NellisScanner.Core
 @using NellisScanner.Core.Models
 @using NellisScanner.Web.Data
 @using System.Globalization
@@ -7,149 +8,137 @@
 
 <PageTitle>Nellis Scanner - Home</PageTitle>
 
-<div class="container">
-    <div class="row mb-4">
-        <div class="col">
-            <h1 class="display-4">Nellis Auctions Dashboard</h1>
-            <p class="lead">Track and monitor electronics auctions from Nellis Auctions.</p>
-        </div>
+<div class="container mx-auto px-4">
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold text-gray-800">Nellis Auctions Dashboard</h1>
+        <p class="text-lg text-gray-600 mt-2">Track and monitor electronics auctions from Nellis Auctions.</p>
     </div>
 
     @if (Loading)
     {
-        <div class="d-flex justify-content-center my-5">
-            <div class="spinner-border" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
+        <div class="flex justify-center items-center my-12">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
         </div>
     }
     else
     {
-        <div class="row g-4 mb-4">
-            <div class="col-md-3">
-                <div class="card bg-primary text-white h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">Active Auctions</h5>
-                        <h2 class="display-4">@ActiveAuctionsCount</h2>
-                    </div>
-                </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-blue-600 text-white rounded-lg shadow-lg p-6">
+                <h5 class="font-medium text-lg">Active Auctions</h5>
+                <h2 class="text-4xl font-bold">@ActiveAuctionsCount</h2>
             </div>
-            <div class="col-md-3">
-                <div class="card bg-success text-white h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">Closing Soon</h5>
-                        <h2 class="display-4">@ClosingSoonCount</h2>
-                        <p class="card-text">Ending within 30 minutes</p>
-                    </div>
-                </div>
+            <div class="bg-green-600 text-white rounded-lg shadow-lg p-6">
+                <h5 class="font-medium text-lg">Closing Soon</h5>
+                <h2 class="text-4xl font-bold">@ClosingSoonCount</h2>
+                <p class="mt-2 text-green-100">Ending within 30 minutes</p>
             </div>
-            <div class="col-md-3">
-                <div class="card bg-info text-white h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">Total Value</h5>
-                        <h2>@TotalRetailValue.ToString("C0", CultureInfo.GetCultureInfo("en-US"))</h2>
-                        <p class="card-text">Retail price</p>
-                    </div>
-                </div>
+            <div class="bg-cyan-600 text-white rounded-lg shadow-lg p-6">
+                <h5 class="font-medium text-lg">Total Value</h5>
+                <h2 class="text-3xl font-bold">@TotalRetailValue.ToString("C0", CultureInfo.GetCultureInfo("en-US"))</h2>
+                <p class="mt-2 text-cyan-100">Retail price</p>
             </div>
-            <div class="col-md-3">
-                <div class="card bg-warning text-dark h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">Current Bids</h5>
-                        <h2>@TotalCurrentBids.ToString("C0", CultureInfo.GetCultureInfo("en-US"))</h2>
-                        <p class="card-text">Current price</p>
-                    </div>
-                </div>
+            <div class="bg-yellow-500 text-gray-800 rounded-lg shadow-lg p-6">
+                <h5 class="font-medium text-lg">Current Bids</h5>
+                <h2 class="text-3xl font-bold">@TotalCurrentBids.ToString("C0", CultureInfo.GetCultureInfo("en-US"))</h2>
+                <p class="mt-2">Current price</p>
             </div>
         </div>
 
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Highest Value Auctions</h5>
-                    </div>
-                    <div class="card-body">
-                        @if (TopValueAuctions.Any())
-                        {
-                            <table class="table table-hover">
-                                <thead>
+        <div class="grid md:grid-cols-2 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow-md h-full">
+                <div class="border-b px-6 py-3">
+                    <h5 class="font-semibold text-lg">Highest Value Auctions</h5>
+                </div>
+                <div class="p-6">
+                    @if (TopValueAuctions.Any())
+                    {
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead class="bg-gray-50">
                                     <tr>
-                                        <th>Item</th>
-                                        <th>Retail Price</th>
-                                        <th>Current Price</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Retail Price</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Price</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody class="divide-y divide-gray-200">
                                     @foreach (var auction in TopValueAuctions)
                                     {
-                                        <tr>
-                                            <td><a href="auctions" title="@auction.Title">@TruncateString(auction.Title, 30)</a></td>
-                                            <td>@auction.RetailPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
-                                            <td>@auction.CurrentPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-3">
+                                                <a href="auctions" class="text-blue-600 hover:underline" title="@auction.Title">
+                                                    @TruncateString(auction.Title, 30)
+                                                </a>
+                                            </td>
+                                            <td class="px-4 py-3">@auction.RetailPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
+                                            <td class="px-4 py-3">@auction.CurrentPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
                                         </tr>
                                     }
                                 </tbody>
                             </table>
-                        }
-                        else
-                        {
-                            <div class="alert alert-info">No auctions available</div>
-                        }
-                    </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="bg-blue-50 text-blue-700 p-4 rounded">No auctions available</div>
+                    }
                 </div>
             </div>
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Closing Soon</h5>
-                    </div>
-                    <div class="card-body">
-                        @if (ClosingSoonAuctions.Any())
-                        {
-                            <table class="table table-hover">
-                                <thead>
+            <div class="bg-white rounded-lg shadow-md h-full">
+                <div class="border-b px-6 py-3">
+                    <h5 class="font-semibold text-lg">Closing Soon</h5>
+                </div>
+                <div class="p-6">
+                    @if (ClosingSoonAuctions.Any())
+                    {
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead class="bg-gray-50">
                                     <tr>
-                                        <th>Item</th>
-                                        <th>Current Price</th>
-                                        <th>Closes In</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Price</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Closes In</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody class="divide-y divide-gray-200">
                                     @foreach (var auction in ClosingSoonAuctions)
                                     {
-                                        <tr>
-                                            <td><a href="auctions" title="@auction.Title">@TruncateString(auction.Title, 30)</a></td>
-                                            <td>@auction.CurrentPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
-                                            <td>@FormatTimeRemaining(auction.CloseTime)</td>
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-3">
+                                                <a href="auctions" class="text-blue-600 hover:underline" title="@auction.Title">
+                                                    @TruncateString(auction.Title, 30)
+                                                </a>
+                                            </td>
+                                            <td class="px-4 py-3">@auction.CurrentPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
+                                            <td class="px-4 py-3">
+                                                <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-sm">
+                                                    @FormatTimeRemaining(auction.CloseTime)
+                                                </span>
+                                            </td>
                                         </tr>
                                     }
                                 </tbody>
                             </table>
-                        }
-                        else
-                        {
-                            <div class="alert alert-info">No auctions closing soon</div>
-                        }
-                    </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="bg-blue-50 text-blue-700 p-4 rounded">No auctions closing soon</div>
+                    }
                 </div>
             </div>
         </div>
 
-        <div class="row">
-            <div class="col">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Last Updated</h5>
-                    </div>
-                    <div class="card-body">
-                        <p class="mb-0">Data last refreshed: @(LastUpdated?.ToLocalTime().ToString("g") ?? "Never")</p>
-                    </div>
-                    <div class="card-footer">
-                        <a href="auctions" class="btn btn-primary">View All Auctions</a>
-                        <a href="/hangfire" target="_blank" class="btn btn-outline-secondary">View Background Jobs</a>
-                    </div>
-                </div>
+        <div class="bg-white rounded-lg shadow-md">
+            <div class="border-b px-6 py-3">
+                <h5 class="font-semibold text-lg">Last Updated</h5>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-700">Data last refreshed: @(LastUpdated?.ToLocalTime().ToString("g") ?? "Never")</p>
+            </div>
+            <div class="px-6 py-3 bg-gray-50 flex flex-wrap gap-2">
+                <a href="auctions" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">View All Auctions</a>
+                <a href="/hangfire" target="_blank" class="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-100 transition-colors">View Background Jobs</a>
             </div>
         </div>
     }
@@ -161,8 +150,8 @@
     private int ClosingSoonCount { get; set; }
     private decimal TotalRetailValue { get; set; }
     private decimal TotalCurrentBids { get; set; }
-    private List<Product> TopValueAuctions { get; set; } = new();
-    private List<Product> ClosingSoonAuctions { get; set; } = new();
+    private List<AuctionItem> TopValueAuctions { get; set; } = new();
+    private List<AuctionItem> ClosingSoonAuctions { get; set; } = new();
     private DateTimeOffset? LastUpdated { get; set; }
 
     protected override async Task OnInitializedAsync()
@@ -175,19 +164,20 @@
         try
         {
             // Get active auctions count
-            ActiveAuctionsCount = await DbContext.Products
-                .Where(p => !p.IsClosed)
+            ActiveAuctionsCount = await DbContext.Auctions
+                .Where(p => p.State == AuctionState.Active)
                 .CountAsync();
 
             // Get auctions closing within 30 minutes
             var thirtyMinutesFromNow = DateTimeOffset.UtcNow.AddMinutes(30);
-            ClosingSoonCount = await DbContext.Products
-                .Where(p => !p.IsClosed && p.CloseTime <= thirtyMinutesFromNow)
+            ClosingSoonCount = await DbContext.Auctions
+                .Where(p => p.State == AuctionState.Active && 
+                          p.CloseTime <= thirtyMinutesFromNow)
                 .CountAsync();
 
             // Get total retail value and current bids
-            var totals = await DbContext.Products
-                .Where(p => !p.IsClosed)
+            var totals = await DbContext.Auctions
+                .Where(p => p.State == AuctionState.Active)
                 .GroupBy(p => 1)
                 .Select(g => new { 
                     RetailValue = g.Sum(p => p.RetailPrice),
@@ -199,28 +189,29 @@
             TotalCurrentBids = totals?.CurrentBids ?? 0;
 
             // Get top 5 auctions by retail price
-            TopValueAuctions = await DbContext.Products
-                .Where(p => !p.IsClosed)
+            TopValueAuctions = await DbContext.Auctions
+                .Where(p => p.State == AuctionState.Active)
                 .OrderByDescending(p => p.RetailPrice)
                 .Take(5)
                 .ToListAsync();
 
             // Get top 5 auctions closing soon
-            ClosingSoonAuctions = await DbContext.Products
-                .Where(p => !p.IsClosed)
+            ClosingSoonAuctions = await DbContext.Auctions
+                .Where(p => p.State == AuctionState.Active)
                 .OrderBy(p => p.CloseTime)
                 .Take(5)
                 .ToListAsync();
 
-            // Get last updated time (most recent price history entry)
-            LastUpdated = await DbContext.PriceHistory
-                .OrderByDescending(ph => ph.RecordedAt)
-                .Select(ph => ph.RecordedAt)
+            // Get last updated time from most recent auction update
+            LastUpdated = await DbContext.Auctions
+                .OrderByDescending(a => a.LastUpdated)
+                .Select(a => a.LastUpdated)
                 .FirstOrDefaultAsync();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // Handle any errors (in a real app you would log this)
+            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
         }
         finally
         {
