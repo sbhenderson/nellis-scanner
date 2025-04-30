@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   web:
@@ -18,7 +17,7 @@ services:
       - nellis-network
 
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17
     ports:
       - "5432:5432"
     environment:
@@ -31,7 +30,7 @@ services:
     networks:
       - nellis-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nellis_user}"]
+      test: ["CMD-SHELL", "pg_isready -d nellis_scanner -U ${POSTGRES_USER:-nellis_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
