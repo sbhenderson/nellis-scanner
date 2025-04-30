@@ -19,8 +19,8 @@ RUN dotnet build -c Release -o /app/build
 FROM build AS publish
 RUN dotnet publish -c Release -o /app/publish
 
-# Use the official ASP.NET runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+# Use the Ubuntu Chiseled ASP.NET runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:9.0-jammy-chiseled AS final
 WORKDIR /app
 EXPOSE 80
 EXPOSE 443

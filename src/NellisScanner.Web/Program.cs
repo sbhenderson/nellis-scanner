@@ -18,7 +18,7 @@ builder.Services.AddDbContext<NellisScannerDbContext>(options =>
 
 // Configure HttpClient for NellisScanner
 builder.Services.AddHttpClient<NellisScanner.Core.NellisScanner>();
-builder.Services.AddScoped<NellisScanner.Core.NellisScanner>();
+builder.Services.AddTransient<NellisScanner.Core.NellisScanner>();
 
 // Configure Hangfire with PostgreSQL
 builder.Services.AddHangfire(config => config
@@ -54,12 +54,12 @@ app.UseHangfireDashboard();
 RecurringJob.AddOrUpdate<AuctionScannerService>(
     "scan-electronics", 
     service => service.ScanElectronicsAsync(CancellationToken.None), 
-    "*/5 * * * *");  // Run every 5 minutes
+    "0 */8 * * *");  // Run every 8 hours
 
 RecurringJob.AddOrUpdate<AuctionScannerService>(
-    "monitor-closing-auctions", 
-    service => service.MonitorClosingAuctionsAsync(CancellationToken.None), 
-    "*/1 * * * *");  // Run every minute
+    "update-closed-auctions", 
+    service => service.UpdateClosedAuctionsAsync(CancellationToken.None), 
+    "*/30 * * * *");  // Run every 30 minutes
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

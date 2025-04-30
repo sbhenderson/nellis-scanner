@@ -9,16 +9,16 @@ public class AuctionScannerService
 {
     private readonly Core.NellisScanner _nellisScanner;
     private readonly ILogger<AuctionScannerService> _logger;
-    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly NellisScannerDbContext _dbContext;
 
     public AuctionScannerService(
         Core.NellisScanner nellisScanner,
         ILogger<AuctionScannerService> logger,
-        IServiceScopeFactory scopeFactory)
+        NellisScannerDbContext dbContext)
     {
         _nellisScanner = nellisScanner;
         _logger = logger;
-        _scopeFactory = scopeFactory;
+        _dbContext = dbContext;
     }
 
     /// <summary>
@@ -72,133 +72,63 @@ public class AuctionScannerService
     }
 
     /// <summary>
-    /// Monitors auctions that are close to closing to track final prices
+    /// Updates the status of closed auctions by checking all active auctions that are 
+    /// past their closing time by at least 30 minutes
     /// </summary>
-    public async Task MonitorClosingAuctionsAsync(CancellationToken cancellationToken = default)
+    public async Task UpdateClosedAuctionsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            _logger.LogInformation("Monitoring auctions that are closing soon");
+            _logger.LogInformation("Processing expired auctions to mark as closed");
             
-            // Create a scope to use the DbContext
-            using var scope = _scopeFactory.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<NellisScannerDbContext>();
-            
-            // Get auctions that are closing within the next 30 minutes
-            var thirtyMinutesFromNow = DateTimeOffset.UtcNow.AddMinutes(30);
-            var now = DateTimeOffset.UtcNow;
-            
-            var closingAuctions = await dbContext.Auctions
+            // Get auctions that are still active but past their close time by at least 30 minutes
+            var thirtyMinutesAgo = DateTimeOffset.UtcNow.AddMinutes(-30);
+            var potentiallyClosedAuctions = await _dbContext.Auctions
                 .Where(a => a.State == AuctionState.Active && 
-                           a.CloseTime > now && 
-                           a.CloseTime <= thirtyMinutesFromNow)
+                           a.CloseTime < thirtyMinutesAgo)
                 .ToListAsync(cancellationToken);
             
-            _logger.LogInformation("Found {Count} auctions closing within 30 minutes", closingAuctions.Count);
-            
-            // Update each auction's current price
-            foreach (var auction in closingAuctions)
-            {
-                try
-                {
-                    var priceInfo = await _nellisScanner.GetAuctionPriceInfoAsync(
-                        auction.Id, auction.Title ?? "", cancellationToken);
-                    
-                    auction.CurrentPrice = priceInfo.Price;
-                    auction.LastUpdated = DateTimeOffset.UtcNow;
-                    
-                    if (!string.IsNullOrEmpty(priceInfo.InventoryNumber) && 
-                        auction.InventoryNumber != priceInfo.InventoryNumber)
-                    {
-                        auction.InventoryNumber = priceInfo.InventoryNumber;
-                        await EnsureInventoryExistsAsync(dbContext, priceInfo.InventoryNumber, auction.Title, cancellationToken);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error updating auction {Id}", auction.Id);
-                }
-            }
-            
-            await dbContext.SaveChangesAsync(cancellationToken);
-            
-            // Process recently closed auctions
-            await ProcessClosedAuctionsAsync(cancellationToken);
-            
-            _logger.LogInformation("Completed monitoring of closing auctions");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error monitoring closing auctions");
-        }
-    }
-
-    /// <summary>
-    /// Processes recently closed auctions to get final prices
-    /// </summary>
-    private async Task ProcessClosedAuctionsAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            _logger.LogInformation("Processing recently closed auctions");
-            
-            // Create a scope to use the DbContext
-            using var scope = _scopeFactory.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<NellisScannerDbContext>();
-            
-            // Get auctions that are still active but past their close time
-            var dayAgo = DateTimeOffset.UtcNow.AddDays(-1);
-            var potentiallyClosedAuctions = await dbContext.Auctions
-                .Where(a => a.State == AuctionState.Active && 
-                           a.CloseTime < DateTimeOffset.UtcNow && 
-                           a.CloseTime > dayAgo)
-                .ToListAsync(cancellationToken);
-            
-            _logger.LogInformation("Found {Count} potentially closed auctions to update", potentiallyClosedAuctions.Count);
+            _logger.LogInformation("Found {Count} expired auctions to update", potentiallyClosedAuctions.Count);
             
             foreach (var auction in potentiallyClosedAuctions)
             {
-                // Get final price from product page
                 try
                 {
                     var priceInfo = await _nellisScanner.GetAuctionPriceInfoAsync(
                         auction.Id, auction.Title ?? "", cancellationToken);
                     
-                    // Update the auction with the final price if it's closed
-                    if (priceInfo.State == AuctionState.Closed)
+                    // Update the auction with the final price
+                    auction.State = AuctionState.Closed;
+                    auction.FinalPrice = priceInfo.Price;
+                    auction.LastUpdated = DateTimeOffset.UtcNow;
+                    
+                    // Update the inventory last seen date
+                    if (!string.IsNullOrEmpty(priceInfo.InventoryNumber))
                     {
-                        auction.State = AuctionState.Closed;
-                        auction.FinalPrice = priceInfo.Price;
-                        auction.LastUpdated = DateTimeOffset.UtcNow;
+                        var inventory = await EnsureInventoryExistsAsync(
+                            _dbContext, priceInfo.InventoryNumber, auction.Title, cancellationToken);
                         
-                        // Update the inventory last seen date
-                        if (!string.IsNullOrEmpty(priceInfo.InventoryNumber))
+                        if (inventory != null)
                         {
-                            var inventory = await EnsureInventoryExistsAsync(
-                                dbContext, priceInfo.InventoryNumber, auction.Title, cancellationToken);
-                            
-                            if (inventory != null)
-                            {
-                                inventory.LastSeen = DateTimeOffset.UtcNow;
-                            }
+                            inventory.LastSeen = DateTimeOffset.UtcNow;
                         }
-                        
-                        _logger.LogInformation("Updated closed auction {Id} with final price {Price}", 
-                            auction.Id, auction.FinalPrice);
                     }
+                    
+                    _logger.LogInformation("Updated closed auction {Id} with final price {Price}", 
+                        auction.Id, auction.FinalPrice);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error updating auction {Id}", auction.Id);
+                    _logger.LogError(ex, "Error updating closed auction {Id}", auction.Id);
                 }
             }
             
-            await dbContext.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation("Completed processing closed auctions");
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Completed processing expired auctions");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing closed auctions");
+            _logger.LogError(ex, "Error processing expired auctions");
         }
     }
     
@@ -218,14 +148,10 @@ public class AuctionScannerService
     /// </summary>
     private async Task UpdateProductAsync(Product product, CancellationToken cancellationToken)
     {
-        // Create a scope to use the DbContext
-        using var scope = _scopeFactory.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<NellisScannerDbContext>();
-        
         try
         {
             // Check if auction already exists in database
-            var existingAuction = await dbContext.Auctions
+            var existingAuction = await _dbContext.Auctions
                 .FirstOrDefaultAsync(a => a.Id == product.Id, cancellationToken);
             
             if (existingAuction != null)
@@ -235,7 +161,13 @@ public class AuctionScannerService
                 existingAuction.RetailPrice = product.RetailPrice;
                 existingAuction.CurrentPrice = product.CurrentPrice;
                 existingAuction.BidCount = product.BidCount;
-                existingAuction.State = product.IsClosed ? AuctionState.Closed : AuctionState.Active;
+                
+                // Only update state if it's active (we don't want to revert closed auctions back to active)
+                if (existingAuction.State != AuctionState.Closed)
+                {
+                    existingAuction.State = product.IsClosed ? AuctionState.Closed : AuctionState.Active;
+                }
+                
                 existingAuction.CloseTime = product.CloseTime;
                 existingAuction.LastUpdated = DateTimeOffset.UtcNow;
                 
@@ -250,25 +182,7 @@ public class AuctionScannerService
                     (existingAuction.InventoryNumber != product.InventoryNumber || existingAuction.Inventory == null))
                 {
                     existingAuction.InventoryNumber = product.InventoryNumber;
-                    await EnsureInventoryExistsAsync(dbContext, product.InventoryNumber, product.Title, cancellationToken);
-                }
-                
-                // If the auction is closed, make sure we get the final price directly from the HTML
-                if (product.IsClosed && existingAuction.State != AuctionState.Closed)
-                {
-                    try
-                    {
-                        var priceInfo = await _nellisScanner.GetAuctionPriceInfoAsync(
-                            product.Id, product.Title ?? "", cancellationToken);
-                            
-                        existingAuction.State = AuctionState.Closed;
-                        existingAuction.FinalPrice = priceInfo.Price;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error getting final price for closed auction {ProductId}", product.Id);
-                        existingAuction.FinalPrice = product.CurrentPrice;
-                    }
+                    await EnsureInventoryExistsAsync(_dbContext, product.InventoryNumber, product.Title, cancellationToken);
                 }
             }
             else
@@ -281,7 +195,7 @@ public class AuctionScannerService
                     InventoryNumber = product.InventoryNumber,
                     RetailPrice = product.RetailPrice,
                     CurrentPrice = product.CurrentPrice,
-                    FinalPrice = product.IsClosed ? product.CurrentPrice : 0, // Initial value for final price
+                    FinalPrice = 0, // Will be set when auction closes
                     BidCount = product.BidCount,
                     State = product.IsClosed ? AuctionState.Closed : AuctionState.Active,
                     OpenTime = product.OpenTime,
@@ -295,32 +209,16 @@ public class AuctionScannerService
                     newAuction.Location = $"{product.Location.City}, {product.Location.State}";
                 }
                 
-                dbContext.Auctions.Add(newAuction);
+                _dbContext.Auctions.Add(newAuction);
                 
                 // Create inventory entry if we have an inventory number
                 if (!string.IsNullOrEmpty(product.InventoryNumber))
                 {
-                    await EnsureInventoryExistsAsync(dbContext, product.InventoryNumber, product.Title, cancellationToken);
-                }
-                
-                // If the auction is closed, try to get the real final price from HTML
-                if (product.IsClosed)
-                {
-                    try
-                    {
-                        var priceInfo = await _nellisScanner.GetAuctionPriceInfoAsync(
-                            product.Id, product.Title ?? "", cancellationToken);
-                            
-                        newAuction.FinalPrice = priceInfo.Price;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error getting final price for new closed auction {ProductId}", product.Id);
-                    }
+                    await EnsureInventoryExistsAsync(_dbContext, product.InventoryNumber, product.Title, cancellationToken);
                 }
             }
             
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken);
         }
         catch (Exception ex)
         {
