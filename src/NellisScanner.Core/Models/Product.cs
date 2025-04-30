@@ -4,14 +4,23 @@ namespace NellisScanner.Core.Models;
 
 public class Product
 {
+    [JsonPropertyName("id")]
     public int Id { get; set; }
+    [JsonPropertyName("grade")]
     public Grade? Grade { get; set; }
+    [JsonPropertyName("title")]
     public string? Title { get; set; }
+    [JsonPropertyName("inventoryNumber")]
     public string? InventoryNumber { get; set; }
+    [JsonPropertyName("photos")]
     public List<Photo> Photos { get; set; } = new();
+    [JsonPropertyName("retailPrice")]
     public decimal RetailPrice { get; set; }
+    [JsonPropertyName("notes")]
     public string? Notes { get; set; }
+    [JsonPropertyName("bidCount")]
     public int BidCount { get; set; }
+    [JsonPropertyName("currentPrice")]
     public decimal CurrentPrice { get; set; }
     [JsonPropertyName("openTime")]
     public DateTimeOffset OpenTime { get; set; }
@@ -19,11 +28,17 @@ public class Product
     public DateTimeOffset CloseTime { get; set; }
     [JsonPropertyName("initialCloseTime")]
     public DateTimeOffset InitialCloseTime { get; set; }
+    [JsonPropertyName("isClosed")]
     public bool IsClosed { get; set; }
+    [JsonPropertyName("marketStatus")]
     public string? MarketStatus { get; set; }
+    [JsonPropertyName("location")]
     public Location? Location { get; set; }
+    [JsonPropertyName("originType")]
     public string? OriginType { get; set; }
+    [JsonPropertyName("extensionInterval")]
     public int ExtensionInterval { get; set; }
+    [JsonPropertyName("projectExtended")]
     public bool ProjectExtended { get; set; }
     
     // Navigation property for EF Core
@@ -78,6 +93,10 @@ public class Location
     public string? City { get; set; }
     public string? State { get; set; }
     public int ZipCode { get; set; }
+    public override string ToString()
+    {
+        return Name ?? "Null";
+    }
 }
 
 public class PriceHistory

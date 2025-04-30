@@ -47,7 +47,7 @@ public class NellisScanner
         Category category = Category.Electronics, 
         int pageNumber = 0,
         int pageSize = 120,
-        string location = "Katy",
+        NellisLocations location = NellisLocations.Houston,
         string sortBy = "retail_price_desc",
         CancellationToken cancellationToken = default)
     {
@@ -58,9 +58,12 @@ public class NellisScanner
             {
                 ["query"] = string.Empty,
                 ["sortBy"] = sortBy,
-                ["Location+Name"] = location,
-                [UrlHelpers.GetPaginationParameter(pageSize, pageNumber)] = string.Empty,
-                ["_data"] = "routes%2Fsearch"
+                ["_p1"] = UrlHelpers.GetPaginationParameter(pageSize, pageNumber),
+                ["_data"] = "routes/search"
+            };
+            var dictionaryCookies = new Dictionary<string, string>
+            {
+                ["__shopping-location"] = LocationCookie.GetLocationCookie(location)
             };
 
             // Add category filter if not "All"
@@ -71,10 +74,21 @@ public class NellisScanner
             
             // Build the URL
             string url = $"https://www.nellisauction.com/search?{BuildQueryString(queryParams)}";
-            _logger.LogInformation("Fetching {Category} auctions data from page {PageNumber} (size: {PageSize})", 
+            _logger.LogDebug("Fetching {Category} auctions data from page {PageNumber} (size: {PageSize})", 
                 category.GetDescription(), pageNumber, pageSize);
             
-            var response = await _httpClient.GetFromJsonAsync<SearchResponse>(url, _jsonOptions, cancellationToken);
+            // Create custom request to add cookie
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            
+            // Add shopping location cookie
+            request.Headers.Add("Cookie", BuildCookieString(dictionaryCookies));
+            
+            // Send the request
+            var httpResponse = await _httpClient.SendAsync(request, cancellationToken);
+            httpResponse.EnsureSuccessStatusCode();
+            
+            // Deserialize the response
+            var response = await httpResponse.Content.ReadFromJsonAsync<SearchResponse>(_jsonOptions, cancellationToken);
             if (response == null)
             {
                 _logger.LogWarning("Received null response from Nellis Auction API");
@@ -100,7 +114,7 @@ public class NellisScanner
     /// <returns>SearchResponse containing auction products</returns>
     public async Task<SearchResponse> GetElectronicsHighToLowAsync(
         int page = 0, 
-        string location = "Katy",
+        NellisLocations location = NellisLocations.Houston,
         CancellationToken cancellationToken = default)
     {
         return await GetAuctionItemsAsync(
@@ -114,15 +128,25 @@ public class NellisScanner
     /// <summary>
     /// Builds a query string from a dictionary of parameters
     /// </summary>
-    private string BuildQueryString(Dictionary<string, string> parameters)
+    private static string BuildQueryString(Dictionary<string, string> parameters)
     {
         return string.Join("&", parameters.Select(kvp => 
             string.IsNullOrEmpty(kvp.Value) ? HttpUtility.UrlEncode(kvp.Key) : 
-            $"{HttpUtility.UrlEncode(kvp.Key)}={HttpUtility.UrlEncode(kvp.Value)}"));
+            $"{kvp.Key}={HttpUtility.UrlEncode(kvp.Value)}"));
+    }
+    /// <summary>
+    /// Builds cookie header string from a dictionary of parameters
+    /// </summary>
+    private static string BuildCookieString(Dictionary<string, string> cookies)
+    {
+        return string.Join("; ", cookies.Select(kvp => 
+            string.IsNullOrEmpty(kvp.Value) ? HttpUtility.UrlEncode(kvp.Key) : 
+            $"{kvp.Key}={kvp.Value}"));
+            // $"{kvp.Key}={HttpUtility.UrlEncode(kvp.Value)}"));
     }
     
     /// <summary>
-    /// Fetches a specific product by ID
+    /// Fetches a specific product by ID - non functional
     /// </summary>
     /// <param name="productId">The ID of the product to fetch</param>
     /// <param name="cancellationToken">Cancellation token</param>
@@ -154,7 +178,7 @@ public class NellisScanner
     /// <returns>AuctionPriceInfo containing current or final price and auction state</returns>
     public async Task<AuctionPriceInfo> GetAuctionPriceInfoAsync(
         int productId,
-        string productName = "",
+        string productName = "Always-Have-Something",
         CancellationToken cancellationToken = default)
     {
         try
@@ -198,7 +222,7 @@ public class NellisScanner
     /// </summary>
     /// <param name="html">The HTML content of the product page</param>
     /// <returns>AuctionPriceInfo with extracted information</returns>
-    private AuctionPriceInfo ParseHtmlForPriceInfo(string html)
+    private static AuctionPriceInfo ParseHtmlForPriceInfo(string html)
     {
         var result = new AuctionPriceInfo
         {

@@ -40,8 +40,9 @@ public class NellisScannerTests
     {
         // First get an auction ID from the search
         var products = await _scanner.GetElectronicsHighToLowAsync();
-        var productId = products.Products.First().Id;
-        var productTitle = products.Products.First().Title ?? string.Empty;
+        var firstProduct = products.Products.First();
+        var productId = firstProduct.Id;
+        var productTitle = firstProduct.Title ?? string.Empty;
         
         // Act
         var result = await _scanner.GetAuctionPriceInfoAsync(productId, productTitle);
@@ -49,6 +50,7 @@ public class NellisScannerTests
         // Assert
         Assert.NotNull(result);
         Assert.Equal(productId, result.ProductId);
+        Assert.Equal(firstProduct.CurrentPrice, result.Price);
         Assert.True(result.Price > 0);
         
         // Output the results
@@ -56,6 +58,15 @@ public class NellisScannerTests
         _output.WriteLine($"Price: ${result.Price}");
         _output.WriteLine($"State: {result.State}");
         _output.WriteLine($"Inventory Number: {result.InventoryNumber}");
+    }
+    [Fact]
+    public async Task FetchClosedAuctionAndEnsureItSaysClosedWithPrice()
+    {
+        //https://www.nellisauction.com/p/Speediance-Gym-Monster-2-Smart-Home-Gym-Upgraded-AI-Powered-Home/50504133
+        const int AuctionId = 50504133;
+        var result = await _scanner.GetAuctionPriceInfoAsync(AuctionId);
+        Assert.Equal(1651.00M, result.Price);
+        Assert.Equal(AuctionState.Closed, result.State);
     }
 }
 

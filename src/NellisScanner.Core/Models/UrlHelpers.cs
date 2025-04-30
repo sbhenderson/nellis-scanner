@@ -32,7 +32,7 @@ internal static class UrlHelpers
     /// <param name="pageNumber">Zero-based page number</param>
     public static string GetPaginationParameter(int pageSize = 120, int pageNumber = 0)
     {
-        return $"_p1=s%3A{pageSize}%2Cn%3A{pageNumber}";
+        return $"s:{pageSize},n:{pageNumber}";
     }
 
     /// <summary>
