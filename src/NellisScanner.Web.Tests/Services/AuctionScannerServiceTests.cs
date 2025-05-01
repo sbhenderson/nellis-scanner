@@ -92,7 +92,7 @@ namespace NellisScanner.Web.Tests.Services
                 .ReturnsAsync(testResponse);
 
             // Act
-            await _sut.ScanElectronicsAsync(CancellationToken.None);
+            await _sut.ScanEachCategoryAsync(CancellationToken.None);
 
             // Assert
             var auctions = await _dbContext.Auctions.ToListAsync();

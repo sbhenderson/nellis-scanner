@@ -200,7 +200,7 @@ namespace NellisScanner.Web.Tests.Integration
             var scannerService = scope.ServiceProvider.GetRequiredService<AuctionScannerService>();
 
             // Act
-            await scannerService.ScanElectronicsAsync(CancellationToken.None);
+            await scannerService.ScanEachCategoryAsync(CancellationToken.None);
 
             // Assert
             var auctions = await dbContext.Auctions.ToListAsync();

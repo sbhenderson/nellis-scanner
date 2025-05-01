@@ -22,11 +22,14 @@ public class AuctionScannerService
     }
 
     /// <summary>
-    /// Scans electronics auctions and stores them in the database
+    /// Scans each category's auctions and stores them in the database
     /// </summary>
-    public async Task ScanElectronicsAsync(CancellationToken cancellationToken = default)
+    public async Task ScanEachCategoryAsync(CancellationToken cancellationToken = default)
     {
-        await ScanCategoryAsync(Category.Electronics, cancellationToken);
+        foreach(var category in Enum.GetValues<Category>())
+        {
+            await ScanCategoryAsync(category, cancellationToken);
+        }
     }
 
     /// <summary>

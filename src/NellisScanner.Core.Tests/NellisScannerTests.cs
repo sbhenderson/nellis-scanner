@@ -8,7 +8,7 @@ namespace NellisScanner.Core.Tests;
 public class NellisScannerTests
 {
     private readonly ITestOutputHelper _output;
-    private readonly NellisScanner _scanner;
+    private readonly INellisScanner _scanner;
     
     public NellisScannerTests(ITestOutputHelper output)
     {
@@ -26,7 +26,8 @@ public class NellisScannerTests
         // Assert
         Assert.NotNull(result);
         Assert.NotEmpty(result.Products);
-        
+        Assert.NotNull(result.Algolia);
+        Assert.NotEqual(0, result.Algolia.NumberOfPages);
         // Output some information about the first product
         var firstProduct = result.Products.First();
         _output.WriteLine($"First product: {firstProduct.Title}");
