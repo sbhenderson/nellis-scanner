@@ -1,5 +1,5 @@
 # Use the official .NET SDK as a build image
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0-noble AS build
 WORKDIR /app
 
 # Copy csproj files and restore dependencies
@@ -20,7 +20,7 @@ FROM build AS publish
 RUN dotnet publish -c Release -o /app/publish
 
 # Use the Ubuntu Chiseled ASP.NET runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:9.0-jammy-chiseled AS final
+FROM mcr.microsoft.com/dotnet/aspnet:9.0-noble-chiseled AS final
 WORKDIR /app
 EXPOSE 80
 EXPOSE 443
