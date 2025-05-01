@@ -1,6 +1,7 @@
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
+using NellisScanner.Core;
 using NellisScanner.Web.Components;
 using NellisScanner.Web.Data;
 using NellisScanner.Web.Services;
@@ -18,7 +19,7 @@ builder.Services.AddDbContext<NellisScannerDbContext>(options =>
 
 // Configure HttpClient for NellisScanner
 builder.Services.AddHttpClient<NellisScanner.Core.NellisScanner>();
-builder.Services.AddTransient<NellisScanner.Core.NellisScanner>();
+builder.Services.AddTransient<INellisScanner, NellisScanner.Core.NellisScanner>();
 
 // Configure Hangfire with PostgreSQL
 builder.Services.AddHangfire(config => config
@@ -68,7 +69,11 @@ app.MapRazorComponents<App>()
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<NellisScannerDbContext>();
-    db.Database.Migrate();
+    // Only run migrations if we're using a relational database provider
+    if (db.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory")
+    {
+        db.Database.Migrate();
+    }
 }
 
 app.Run();

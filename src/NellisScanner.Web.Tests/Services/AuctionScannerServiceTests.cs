@@ -5,8 +5,10 @@ using NellisScanner.Core;
 using NellisScanner.Core.Models;
 using NellisScanner.Web.Data;
 using NellisScanner.Web.Services;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -15,22 +17,21 @@ namespace NellisScanner.Web.Tests.Services
 {
     public class AuctionScannerServiceTests
     {
-        private readonly Mock<NellisScanner.Core.NellisScanner> _mockNellisScanner;
+        private readonly Mock<INellisScanner> _mockNellisScanner;
         private readonly Mock<ILogger<AuctionScannerService>> _mockLogger;
         private readonly NellisScannerDbContext _dbContext;
         private readonly AuctionScannerService _sut; // System Under Test
 
         public AuctionScannerServiceTests()
         {
-            // Create mocks
-            _mockNellisScanner = new Mock<NellisScanner.Core.NellisScanner>(
-                Mock.Of<HttpClient>(),
-                Mock.Of<ILogger<NellisScanner.Core.NellisScanner>>());
+            // Create mock for INellisScanner
+            _mockNellisScanner = new Mock<INellisScanner>();
+                
             _mockLogger = new Mock<ILogger<AuctionScannerService>>();
 
             // Create in-memory database context
             var options = new DbContextOptionsBuilder<NellisScannerDbContext>()
-                .UseInMemoryDatabase(databaseName: "NellisScannerTestDb_" + System.Guid.NewGuid())
+                .UseInMemoryDatabase(databaseName: "NellisScannerTestDb_" + Guid.NewGuid())
                 .Options;
             _dbContext = new NellisScannerDbContext(options);
 
@@ -63,9 +64,23 @@ namespace NellisScanner.Web.Tests.Services
 
             var testResponse = new SearchResponse
             {
-                Products = testProducts,
-                Algolia = new SearchMetadata { NumberOfPages = 1 }
+                Products = testProducts
             };
+            
+            // Add NumberOfPages property via reflection if property exists in AlgoliaInfo
+            var algoliaInfo = new AlgoliaInfo();
+            var property = typeof(AlgoliaInfo).GetProperty("NumberOfPages");
+            if (property != null)
+            {
+                property.SetValue(algoliaInfo, 1);
+            }
+            
+            // Set the Algolia property through reflection
+            var algoliaProperty = typeof(SearchResponse).GetProperty("Algolia");
+            if (algoliaProperty != null)
+            {
+                algoliaProperty.SetValue(testResponse, algoliaInfo);
+            }
 
             _mockNellisScanner.Setup(s => s.GetAuctionItemsAsync(
                     Category.Electronics,
@@ -177,9 +192,23 @@ namespace NellisScanner.Web.Tests.Services
 
             var testResponse = new SearchResponse
             {
-                Products = new List<Product> { updatedProduct },
-                Algolia = new SearchMetadata { NumberOfPages = 1 }
+                Products = new List<Product> { updatedProduct }
             };
+
+            // Add NumberOfPages property via reflection if property exists
+            var algoliaInfo = new AlgoliaInfo();
+            var property = typeof(AlgoliaInfo).GetProperty("NumberOfPages");
+            if (property != null)
+            {
+                property.SetValue(algoliaInfo, 1);
+            }
+            
+            // Set the Algolia property through reflection
+            var algoliaProperty = typeof(SearchResponse).GetProperty("Algolia");
+            if (algoliaProperty != null)
+            {
+                algoliaProperty.SetValue(testResponse, algoliaInfo);
+            }
 
             _mockNellisScanner.Setup(s => s.GetAuctionItemsAsync(
                     It.IsAny<Category>(),
@@ -221,9 +250,23 @@ namespace NellisScanner.Web.Tests.Services
 
             var testResponse = new SearchResponse
             {
-                Products = new List<Product> { product },
-                Algolia = new SearchMetadata { NumberOfPages = 1 }
+                Products = new List<Product> { product }
             };
+
+            // Add NumberOfPages property via reflection if property exists
+            var algoliaInfo = new AlgoliaInfo();
+            var property = typeof(AlgoliaInfo).GetProperty("NumberOfPages");
+            if (property != null)
+            {
+                property.SetValue(algoliaInfo, 1);
+            }
+            
+            // Set the Algolia property through reflection
+            var algoliaProperty = typeof(SearchResponse).GetProperty("Algolia");
+            if (algoliaProperty != null)
+            {
+                algoliaProperty.SetValue(testResponse, algoliaInfo);
+            }
 
             _mockNellisScanner.Setup(s => s.GetAuctionItemsAsync(
                     It.IsAny<Category>(),
@@ -269,9 +312,23 @@ namespace NellisScanner.Web.Tests.Services
 
             var testResponse1 = new SearchResponse
             {
-                Products = new List<Product> { product1 },
-                Algolia = new SearchMetadata { NumberOfPages = 1 }
+                Products = new List<Product> { product1 }
             };
+
+            // Add NumberOfPages property via reflection if property exists
+            var algoliaInfo1 = new AlgoliaInfo();
+            var property = typeof(AlgoliaInfo).GetProperty("NumberOfPages");
+            if (property != null)
+            {
+                property.SetValue(algoliaInfo1, 1);
+            }
+            
+            // Set the Algolia property through reflection
+            var algoliaProperty = typeof(SearchResponse).GetProperty("Algolia");
+            if (algoliaProperty != null)
+            {
+                algoliaProperty.SetValue(testResponse1, algoliaInfo1);
+            }
 
             _mockNellisScanner.Setup(s => s.GetAuctionItemsAsync(
                     It.IsAny<Category>(),
@@ -300,9 +357,21 @@ namespace NellisScanner.Web.Tests.Services
 
             var testResponse2 = new SearchResponse
             {
-                Products = new List<Product> { product2 },
-                Algolia = new SearchMetadata { NumberOfPages = 1 }
+                Products = new List<Product> { product2 }
             };
+
+            // Add NumberOfPages property via reflection if property exists
+            var algoliaInfo2 = new AlgoliaInfo();
+            if (property != null)
+            {
+                property.SetValue(algoliaInfo2, 1);
+            }
+            
+            // Set the Algolia property through reflection
+            if (algoliaProperty != null)
+            {
+                algoliaProperty.SetValue(testResponse2, algoliaInfo2);
+            }
 
             _mockNellisScanner.Setup(s => s.GetAuctionItemsAsync(
                     It.IsAny<Category>(),

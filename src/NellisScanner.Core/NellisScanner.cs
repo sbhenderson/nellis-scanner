@@ -9,7 +9,7 @@ using System.Collections.Specialized;
 
 namespace NellisScanner.Core;
 
-public class NellisScanner
+public class NellisScanner : INellisScanner
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<NellisScanner> _logger;

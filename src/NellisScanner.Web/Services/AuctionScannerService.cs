@@ -7,12 +7,12 @@ namespace NellisScanner.Web.Services;
 
 public class AuctionScannerService
 {
-    private readonly Core.NellisScanner _nellisScanner;
+    private readonly INellisScanner _nellisScanner;
     private readonly ILogger<AuctionScannerService> _logger;
     private readonly NellisScannerDbContext _dbContext;
 
     public AuctionScannerService(
-        Core.NellisScanner nellisScanner,
+        INellisScanner nellisScanner,
         ILogger<AuctionScannerService> logger,
         NellisScannerDbContext dbContext)
     {
