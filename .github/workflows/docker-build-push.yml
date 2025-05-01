@@ -67,6 +67,7 @@ jobs:
         uses: docker/build-push-action@v5 # v5.0.0
         with:
           context: .
+          file: ./src/NellisScanner.Web/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
