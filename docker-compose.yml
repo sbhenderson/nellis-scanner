@@ -1,6 +1,7 @@
 
 services:
   web:
+    image: ghcr.io/sbhenderson/nellis-scanner:latest
     build:
       context: .
       dockerfile: src/NellisScanner.Web/Dockerfile
