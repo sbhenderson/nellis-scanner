@@ -40,16 +40,21 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
+    // app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 app.UseAntiforgery();
 
 // Configure Hangfire Dashboard
-app.UseHangfireDashboard();
+app.UseHangfireDashboard(options: new DashboardOptions
+{
+    Authorization = [new NellisScanner.Web.Utilities.DashboardNoAuthorizationFilter()],
+    IgnoreAntiforgeryToken = true,
+    IsReadOnlyFunc = context => true,
+});
 
 // Configure recurring jobs
 RecurringJob.AddOrUpdate<AuctionScannerService>(

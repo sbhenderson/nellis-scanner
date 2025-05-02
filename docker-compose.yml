@@ -1,16 +1,16 @@
 
 services:
   web:
-    image: ghcr.io/sbhenderson/nellis-scanner:latest
+    image: ghcr.io/sbhenderson/nellis-scanner:main
     build:
       context: .
       dockerfile: src/NellisScanner.Web/Dockerfile
     ports:
-      - "8080:80"
-      - "8443:443"
+      - "8080:8080" #80/443 get used when running directly
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Host=postgres;Database=nellis_scanner;Username=${POSTGRES_USER:-nellis_user};Password=${POSTGRES_PASSWORD:-nellis_password};
+      #- ASPNETCORE_FORWARDEDHEADERS_ENABLED=true #when hosting behind a reverse proxy e.g. Traefik
     depends_on:
       - postgres
     restart: unless-stopped
