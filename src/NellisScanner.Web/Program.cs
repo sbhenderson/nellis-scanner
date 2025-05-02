@@ -53,7 +53,7 @@ app.UseHangfireDashboard();
 
 // Configure recurring jobs
 RecurringJob.AddOrUpdate<AuctionScannerService>(
-    "scan-electronics", 
+    "scan-each-category", 
     service => service.ScanEachCategoryAsync(CancellationToken.None), 
     "0 */8 * * *");  // Run every 8 hours
 
