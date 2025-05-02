@@ -5,93 +5,121 @@ using NellisScanner.Core;
 using NellisScanner.Web.Components;
 using NellisScanner.Web.Data;
 using NellisScanner.Web.Services;
+using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+// Create a bootstrap logger for startup
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .CreateBootstrapLogger(); // Bootstrap logger will be replaced later
 
-// Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
-
-// Configure PostgreSQL and EF Core
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<NellisScannerDbContext>(options =>
-    options.UseNpgsql(connectionString));
-
-// Configure HttpClient for NellisScanner
-builder.Services.AddHttpClient<NellisScanner.Core.NellisScanner>();
-builder.Services.AddTransient<INellisScanner, NellisScanner.Core.NellisScanner>();
-
-// Configure Hangfire with PostgreSQL
-builder.Services.AddHangfire(config => config
-    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-    .UseSimpleAssemblyNameTypeSerializer()
-    .UseRecommendedSerializerSettings()
-    .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString)));
-
-builder.Services.AddHangfireServer();
-
-// Register Scanner Service
-builder.Services.AddScoped<AuctionScannerService>();
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+try
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    // app.UseHsts();
-}
+    Log.Information("Starting web application");
 
-// app.UseHttpsRedirection();
+    var builder = WebApplication.CreateBuilder(args);
 
-app.UseStaticFiles();
-app.UseAntiforgery();
+    // Configure Serilog from appsettings.json
+    builder.Host.UseSerilog((context, services, loggerConfiguration) => loggerConfiguration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext()
+        .WriteTo.Console());
 
-// Configure Hangfire Dashboard
-app.UseHangfireDashboard(options: new DashboardOptions
-{
-    Authorization = [new NellisScanner.Web.Utilities.DashboardNoAuthorizationFilter()],
-    IgnoreAntiforgeryToken = true,
-    IsReadOnlyFunc = context => true,
-});
+    // Add services to the container.
+    builder.Services.AddRazorComponents()
+        .AddInteractiveServerComponents();
 
-// Configure recurring jobs
-RecurringJob.AddOrUpdate<AuctionScannerService>(
-    "scan-each-category",
-    service => service.ScanEachCategoryAsync(CancellationToken.None),
-    "0 */8 * * *");  // Run every 8 hours
+    // Configure PostgreSQL and EF Core
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    builder.Services.AddDbContext<NellisScannerDbContext>(options =>
+        options.UseNpgsql(connectionString));
 
-RecurringJob.AddOrUpdate<AuctionScannerService>(
-    "update-closed-auctions",
-    service => service.UpdateClosedAuctionsAsync(CancellationToken.None),
-    "*/30 * * * *");  // Run every 30 minutes
+    // Configure HttpClient for NellisScanner
+    builder.Services.AddHttpClient<NellisScanner.Core.NellisScanner>();
+    builder.Services.AddTransient<INellisScanner, NellisScanner.Core.NellisScanner>();
 
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+    // Configure Hangfire with PostgreSQL
+    builder.Services.AddHangfire(config => config
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString)));
 
-// Create a scope to apply migrations on startup
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<NellisScannerDbContext>();
-    // Only run migrations if we're using a relational database provider
-    if (db.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory")
+    builder.Services.AddHangfireServer();
+
+    // Register Scanner Service
+    builder.Services.AddScoped<AuctionScannerService>();
+
+    var app = builder.Build();
+
+    // Configure the HTTP request pipeline.
+    if (!app.Environment.IsDevelopment())
     {
-        db.Database.Migrate();
+        app.UseExceptionHandler("/Error", createScopeForErrors: true);
+        // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+        // app.UseHsts();
+    }
+
+    // app.UseHttpsRedirection();
+
+    app.UseStaticFiles();
+    app.UseAntiforgery();
+
+    // Configure Hangfire Dashboard
+    app.UseHangfireDashboard(options: new DashboardOptions
+    {
+        Authorization = [new NellisScanner.Web.Utilities.DashboardNoAuthorizationFilter()],
+        IgnoreAntiforgeryToken = true,
+        IsReadOnlyFunc = context => true,
+    });
+
+    // Configure recurring jobs
+    RecurringJob.AddOrUpdate<AuctionScannerService>(
+        "scan-each-category",
+        service => service.ScanEachCategoryAsync(CancellationToken.None),
+        "0 */8 * * *");  // Run every 8 hours
+
+    RecurringJob.AddOrUpdate<AuctionScannerService>(
+        "update-closed-auctions",
+        service => service.UpdateClosedAuctionsAsync(CancellationToken.None),
+        "*/30 * * * *");  // Run every 30 minutes
+
+    app.MapRazorComponents<App>()
+        .AddInteractiveServerRenderMode();
+
+    // Create a scope to apply migrations on startup
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<NellisScannerDbContext>();
+        // Only run migrations if we're using a relational database provider
+        if (db.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory")
+        {
+            db.Database.Migrate();
+        }
+    }
+
+    if (app.Configuration.GetValue<bool?>("RunOnce") == true)
+    {
+        using var scope = app.Services.CreateScope();
+        Log.Information("Running one-time tasks...");
+        var scannerService = scope.ServiceProvider.GetRequiredService<AuctionScannerService>();
+        await scannerService.ScanEachCategoryAsync(CancellationToken.None);
+        await scannerService.UpdateClosedAuctionsAsync(CancellationToken.None);
+        Log.Information("Completed one-time tasks...");
+    }
+    else
+    {
+        app.Run();
     }
 }
-
-if (app.Configuration.GetValue<bool?>("RunOnce") == true)
+catch (Exception ex)
 {
-    using var scope = app.Services.CreateScope();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    logger.LogInformation("Running one-time tasks...");
-    var scannerService = scope.ServiceProvider.GetRequiredService<AuctionScannerService>();
-    await scannerService.ScanEachCategoryAsync(CancellationToken.None);
-    await scannerService.UpdateClosedAuctionsAsync(CancellationToken.None);
-    logger.LogInformation("Completed one-time tasks...");
+    Log.Fatal(ex, "Application terminated unexpectedly");
 }
-else
+finally
 {
-    app.Run();
+    Log.CloseAndFlush();
 }
