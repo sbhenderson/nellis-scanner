@@ -1,0 +1,503 @@
+@page "/inventory"
+@using Microsoft.EntityFrameworkCore
+@using NellisScanner.Core
+@using NellisScanner.Web.Data
+@using System.Globalization
+@using ApexCharts
+@inject NellisScannerDbContext DbContext
+
+<PageTitle>Inventory - Nellis Scanner</PageTitle>
+
+<div class="container mx-auto px-4">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Inventory Items</h1>
+
+    <div class="mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <div class="flex">
+                    <input type="text" @bind="SearchTerm" @bind:event="oninput" 
+                           class="flex-1 rounded-l border-gray-300 shadow-sm px-4 py-2 focus:ring-blue-500 focus:border-blue-500" 
+                           placeholder="Search by inventory number or description..." />
+                    <button @onclick="ApplyFilters" 
+                            class="bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition-colors">
+                        Search
+                    </button>
+                    <button @onclick="ClearFilters" 
+                            class="bg-gray-600 text-white px-4 py-2 rounded-r hover:bg-gray-700 transition-colors">
+                        Clear
+                    </button>
+                </div>
+            </div>
+            <div>
+                <select @bind="SortBy" class="w-full rounded border-gray-300 shadow-sm px-4 py-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="inventory_asc">Inventory Number (A-Z)</option>
+                    <option value="inventory_desc">Inventory Number (Z-A)</option>
+                    <option value="first_seen_desc">First Seen (Newest)</option>
+                    <option value="first_seen_asc">First Seen (Oldest)</option>
+                    <option value="last_seen_desc">Last Seen (Most Recent)</option>
+                    <option value="last_seen_asc">Last Seen (Least Recent)</option>
+                    <option value="auctions_desc">Most Auctions</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    @if (IsLoading)
+    {
+        <div class="flex justify-center items-center my-12">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+    }
+    else if (InventoryItems == null || !InventoryItems.Any())
+    {
+        <div class="bg-blue-50 text-blue-700 p-4 rounded">No inventory items found.</div>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 gap-6">
+            <div class="bg-white shadow-md overflow-hidden rounded-md">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inventory #</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">First Seen</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Seen</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Auction Count</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Latest Price</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach (var item in InventoryItems)
+                            {
+                                var latestAuction = item.Auctions?.OrderByDescending(a => a.LastUpdated).FirstOrDefault();
+                                var auctionCount = item.Auctions?.Count ?? 0;
+                                
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                                        <button @onclick="() => ShowItemDetails(item)" class="hover:underline">
+                                            @item.InventoryNumber
+                                        </button>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@item.Description</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@(item.CategoryName ?? "Unknown")</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@item.FirstSeen.ToLocalTime().ToString("g")</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@item.LastSeen.ToLocalTime().ToString("g")</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@auctionCount</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        @if (latestAuction != null)
+                                        {
+                                            @latestAuction.CurrentPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                        }
+                                        else
+                                        {
+                                            <span>N/A</span>
+                                        }
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <button @onclick="() => ShowItemDetails(item)"
+                                                class="text-indigo-600 hover:text-indigo-900">
+                                            View History
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex justify-between items-center mt-8">
+            <button class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" 
+                    disabled="@(CurrentPage <= 0)" 
+                    @onclick="PreviousPage">
+                Previous
+            </button>
+            <span class="text-gray-700">Page @(CurrentPage + 1) of @TotalPages</span>
+            <button class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" 
+                    disabled="@(CurrentPage >= TotalPages - 1)" 
+                    @onclick="NextPage">
+                Next
+            </button>
+        </div>
+    }
+
+    @if (SelectedItem != null)
+    {
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold">Inventory Item: @SelectedItem.InventoryNumber</h2>
+                    <button @onclick="CloseItemDetails" class="text-gray-500 hover:text-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h3 class="text-lg font-semibold">Item Details</h3>
+                        <div class="mt-2">
+                            <p><span class="font-medium">Description:</span> @SelectedItem.Description</p>
+                            <p><span class="font-medium">Category:</span> @(SelectedItem.CategoryName ?? "Unknown")</p>
+                            <p><span class="font-medium">First Seen:</span> @SelectedItem.FirstSeen.ToLocalTime().ToString("g")</p>
+                            <p><span class="font-medium">Last Seen:</span> @SelectedItem.LastSeen.ToLocalTime().ToString("g")</p>
+                            <p><span class="font-medium">Total Auctions:</span> @(SelectedItem.Auctions?.Count ?? 0)</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold">Price History</h3>
+                        <div class="bg-white p-2 rounded border h-64">
+                            @if (SelectedItemAuctions != null && SelectedItemAuctions.Any())
+                            {
+                                <ApexChart @ref="priceHistoryChart" TItem="PriceDataPoint" Options="priceChartOptions">
+                                    <ApexPointSeries TItem="PriceDataPoint" 
+                                                     Items="salePriceData" 
+                                                     Name="Sale Price"
+                                                     SeriesType="SeriesType.Line"
+                                                     XValue="@(e => e.Date)"
+                                                     YValue="@(e => e.Price)" />
+                                    <ApexPointSeries TItem="PriceDataPoint" 
+                                                     Items="retailPriceData" 
+                                                     Name="Retail Price"
+                                                     SeriesType="SeriesType.Line"
+                                                     XValue="@(e => e.Date)"
+                                                     YValue="@(e => e.Price)" />
+                                </ApexChart>
+                            }
+                            else
+                            {
+                                <div class="flex justify-center items-center h-full">
+                                    <p class="text-gray-500">No price history available</p>
+                                </div>
+                            }
+                        </div>
+                        <div class="mt-2 text-sm text-gray-600">
+                            <p>Chart shows final price for closed auctions and current price for active ones.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-lg font-semibold mb-2">Auction History</h3>
+                @if (SelectedItemAuctions != null && SelectedItemAuctions.Any())
+                {
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">State</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Open Date</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Close Date</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Retail Price</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Final Price</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bid Count</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">% of Retail</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @foreach (var auction in SelectedItemAuctions)
+                                {
+                                    var priceToShow = auction.State == AuctionState.Active ? auction.CurrentPrice : auction.FinalPrice;
+                                    var percentOfRetail = auction.RetailPrice > 0 ? Math.Round((priceToShow / auction.RetailPrice) * 100, 1) : 0;
+
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">@auction.Id</td>
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">@auction.Title</td>
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm">
+                                            <span class="px-2 py-1 rounded text-xs font-semibold 
+                                                @(auction.State == AuctionState.Active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800")">
+                                                @auction.State
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">@auction.OpenTime.ToLocalTime().ToString("g")</td>
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">@auction.CloseTime.ToLocalTime().ToString("g")</td>
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">@auction.RetailPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">@priceToShow.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">@auction.BidCount</td>
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm">
+                                            <span class="px-2 py-1 rounded text-xs font-semibold 
+                                                @(percentOfRetail < 50 ? "bg-green-100 text-green-800" : 
+                                                percentOfRetail < 80 ? "bg-yellow-100 text-yellow-800" : 
+                                                "bg-red-100 text-red-800")">
+                                                @percentOfRetail%
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="bg-blue-50 text-blue-700 p-4 rounded">No auction history available for this item.</div>
+                }
+                
+                <div class="mt-4 flex justify-end">
+                    <button @onclick="CloseItemDetails" 
+                            class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<InventoryItem>? InventoryItems { get; set; }
+    private bool IsLoading { get; set; } = true;
+    private int CurrentPage { get; set; } = 0;
+    private int PageSize { get; set; } = 15;
+    private int TotalPages { get; set; } = 1;
+    private string SearchTerm { get; set; } = "";
+    private string SortBy { get; set; } = "last_seen_desc";
+
+    // For modal details
+    private InventoryItem? SelectedItem { get; set; }
+    private List<AuctionItem>? SelectedItemAuctions { get; set; }
+    
+    // ApexCharts references and configuration
+    private ApexChart<PriceDataPoint>? priceHistoryChart;
+    private ApexChartOptions<PriceDataPoint> priceChartOptions = new();
+    private List<PriceDataPoint> salePriceData = new();
+    private List<PriceDataPoint> retailPriceData = new();
+
+    // Class to hold chart data points
+    public class PriceDataPoint
+    {
+        public DateTime Date { get; set; }
+        public decimal Price { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Configure the price history chart defaults
+        ConfigurePriceHistoryChart();
+        
+        await LoadInventoryAsync();
+    }
+
+    private void ConfigurePriceHistoryChart()
+    {
+        priceChartOptions = new ApexChartOptions<PriceDataPoint>
+        {
+            Chart = new Chart
+            {
+                Height = 250,
+                Type = ChartType.Line,
+                Toolbar = new Toolbar { Show = false },
+                Zoom = new Zoom { Enabled = false }
+            },
+            Title = new Title { Text = "Price History", Align = Align.Left },
+            Stroke = new Stroke
+            {
+                Width = 3,
+                Curve = Curve.Smooth,
+                DashArray = 0
+            },
+            Colors = new List<string> { "#4ade80", "#dc2626" },
+            Markers = new Markers 
+            { 
+                Size = 5,
+                Hover = new MarkersHover { Size = 7 }
+            },
+            Grid = new Grid
+            {
+                Row = new GridRow { Colors = new List<string> { "#f3f4f6", "transparent" }, Opacity = 0.5 }
+            },
+            DataLabels = new DataLabels { Enabled = false },
+            Xaxis = new XAxis
+            {
+                Type = XAxisType.Datetime,
+                Title = new AxisTitle { Text = "Date" },
+                Labels = new XAxisLabels
+                {
+                    Format = "MMM dd",
+                    Style = new AxisLabelStyle
+                    {
+                        FontSize = "12px"
+                    }
+                }
+            },
+            Yaxis = new List<YAxis>
+            {
+                new YAxis
+                {
+                    Title = new AxisTitle { Text = "Price ($)" },
+                    Labels = new YAxisLabels
+                    {
+                        Formatter = @"function(value) { return '$' + value.toFixed(2); }"
+                    },
+                    ForceNiceScale = true
+                }
+            },
+            Tooltip = new Tooltip
+            {
+                Shared = true,
+                Intersect = false,
+                X = new TooltipX
+                {
+                    Format = "MMM dd, yyyy"
+                },
+                Y = new TooltipY
+                {
+                    Formatter = @"function(value) { return '$' + value.toFixed(2); }"
+                }
+            },
+            Legend = new Legend
+            {
+                Position = LegendPosition.Top,
+                HorizontalAlign = Align.Right
+            }
+        };
+    }
+
+    private async Task LoadInventoryAsync()
+    {
+        IsLoading = true;
+        try
+        {
+            // Create a query for inventory items
+            IQueryable<InventoryItem> query = DbContext.Inventory
+                .Include(i => i.Auctions);
+
+            // Apply search filter if provided
+            if (!string.IsNullOrWhiteSpace(SearchTerm))
+            {
+                query = query.Where(i => 
+                    i.InventoryNumber.Contains(SearchTerm) || 
+                    (i.Description != null && i.Description.Contains(SearchTerm)));
+            }
+
+            // Apply sorting
+            query = SortBy switch
+            {
+                "inventory_asc" => query.OrderBy(i => i.InventoryNumber),
+                "inventory_desc" => query.OrderByDescending(i => i.InventoryNumber),
+                "first_seen_desc" => query.OrderByDescending(i => i.FirstSeen),
+                "first_seen_asc" => query.OrderBy(i => i.FirstSeen),
+                "last_seen_desc" => query.OrderByDescending(i => i.LastSeen),
+                "last_seen_asc" => query.OrderBy(i => i.LastSeen),
+                "auctions_desc" => query.OrderByDescending(i => i.Auctions.Count),
+                _ => query.OrderByDescending(i => i.LastSeen)
+            };
+
+            // Get total count for pagination
+            var totalCount = await query.CountAsync();
+            TotalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
+
+            // Apply pagination
+            InventoryItems = await query
+                .Skip(CurrentPage * PageSize)
+                .Take(PageSize)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            // In a real app, you would log the exception
+            Console.WriteLine($"Error loading inventory items: {ex.Message}");
+            InventoryItems = new List<InventoryItem>();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task ShowItemDetails(InventoryItem item)
+    {
+        SelectedItem = item;
+        
+        // Load all auctions for this item with eager loading
+        SelectedItemAuctions = await DbContext.Auctions
+            .Where(a => a.InventoryNumber == item.InventoryNumber)
+            .OrderByDescending(a => a.CloseTime)
+            .ToListAsync();
+            
+        // Update chart with price history data
+        await UpdatePriceHistoryChart();
+    }
+    
+    private async Task UpdatePriceHistoryChart()
+    {
+        if (SelectedItemAuctions == null || !SelectedItemAuctions.Any())
+            return;
+            
+        // Clear any existing datasets
+        salePriceData.Clear();
+        retailPriceData.Clear();
+        
+        // Add data points sorted by date
+        var sortedAuctions = SelectedItemAuctions.OrderBy(a => a.CloseTime).ToList();
+        
+        foreach (var auction in sortedAuctions)
+        {
+            // Use final price for closed auctions, current price for active ones
+            decimal priceToUse = auction.State == AuctionState.Active ? auction.CurrentPrice : auction.FinalPrice;
+            
+            // Add data points
+            var closeTime = new DateTime(auction.CloseTime.Year, auction.CloseTime.Month, auction.CloseTime.Day);
+            
+            salePriceData.Add(new PriceDataPoint
+            {
+                Date = closeTime,
+                Price = priceToUse
+            });
+            
+            retailPriceData.Add(new PriceDataPoint
+            {
+                Date = closeTime,
+                Price = auction.RetailPrice
+            });
+        }
+        
+        // Force chart update
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void CloseItemDetails()
+    {
+        SelectedItem = null;
+        SelectedItemAuctions = null;
+    }
+
+    private async Task ApplyFilters()
+    {
+        CurrentPage = 0;
+        await LoadInventoryAsync();
+    }
+
+    private async Task ClearFilters()
+    {
+        SearchTerm = "";
+        SortBy = "last_seen_desc";
+        CurrentPage = 0;
+        await LoadInventoryAsync();
+    }
+
+    private async Task PreviousPage()
+    {
+        if (CurrentPage > 0)
+        {
+            CurrentPage--;
+            await LoadInventoryAsync();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (CurrentPage < TotalPages - 1)
+        {
+            CurrentPage++;
+            await LoadInventoryAsync();
+        }
+    }
+}
