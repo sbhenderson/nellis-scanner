@@ -222,7 +222,7 @@ public class AuctionScannerService
             }
             
             // Bulk insert/update auctions
-            await _dbContext.BulkInsertOrUpdateAsync(auctionItems, new BulkConfig 
+            var bulkConfig = new BulkConfig 
             { 
                 PreserveInsertOrder = false,
                 SetOutputIdentity = false,
@@ -231,7 +231,15 @@ public class AuctionScannerService
                     nameof(AuctionItem.Id), 
                     nameof(AuctionItem.FinalPrice) // Don't update FinalPrice as it's set separately when auction closes
                 ]
-            }, cancellationToken: cancellationToken);
+            };
+
+            await EfCoreHelpers.BulkInsertOrUpdateEntitiesAsync(
+                _dbContext,
+                auctionItems,
+                bulkConfig,
+                new List<string> { nameof(AuctionItem.Id) },
+                new List<string> { nameof(AuctionItem.Id), nameof(AuctionItem.FinalPrice) },
+                cancellationToken);
             
             _logger.LogInformation("Completed bulk insert/update of {Count} auctions", auctionItems.Count);
             
@@ -304,12 +312,20 @@ public class AuctionScannerService
         }
         
         // Bulk insert/update inventory
-        await _dbContext.BulkInsertOrUpdateAsync(inventoryItemsToUpsert, new BulkConfig 
+        var bulkConfig = new BulkConfig 
         {
             PreserveInsertOrder = false,
             SetOutputIdentity = true,
             UpdateByProperties = [ nameof(InventoryItem.InventoryNumber) ]
-        }, cancellationToken: cancellationToken);
+        };
+
+        await EfCoreHelpers.BulkInsertOrUpdateEntitiesAsync(
+            _dbContext,
+            inventoryItemsToUpsert,
+            bulkConfig,
+            new List<string> { nameof(InventoryItem.InventoryNumber) },
+            null,
+            cancellationToken);
         
         _logger.LogInformation("Completed bulk insert/update of {Count} inventory items", inventoryItemsToUpsert.Count);
     }
@@ -319,7 +335,7 @@ public class AuctionScannerService
     /// </summary>
     private async Task<InventoryItem?> EnsureInventoryExistsAsync(
         NellisScannerDbContext dbContext, 
-        string inventoryNumber, 
+        long inventoryNumber, 
         string? productTitle, 
         CancellationToken cancellationToken)
     {
