@@ -26,10 +26,13 @@ public class AuctionScannerService
     /// </summary>
     public async Task ScanEachCategoryAsync(CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Starting scan of all auction categories");
+        var sw = Stopwatch.StartNew();
         foreach(var category in Enum.GetValues<Category>())
         {
             await ScanCategoryAsync(category, cancellationToken);
         }
+        _logger.LogInformation("Completed scan of all auction categories in {Elapsed}", sw.Elapsed);
     }
 
     /// <summary>
@@ -83,6 +86,7 @@ public class AuctionScannerService
         try
         {
             _logger.LogInformation("Processing expired auctions to mark as closed");
+            var sw = Stopwatch.StartNew();
             
             // Get auctions that are still active but past their close time by at least 30 minutes
             var thirtyMinutesAgo = DateTimeOffset.UtcNow.AddMinutes(-30);
@@ -101,7 +105,7 @@ public class AuctionScannerService
                         auction.Id, auction.Title ?? "", cancellationToken);
                     
                     // Update the auction with the final price
-                    auction.State = AuctionState.Closed;
+                    auction.State = priceInfo.State;
                     auction.FinalPrice = priceInfo.Price;
                     auction.LastUpdated = DateTimeOffset.UtcNow;
                     
@@ -113,7 +117,7 @@ public class AuctionScannerService
                         
                         if (inventory != null)
                         {
-                            inventory.LastSeen = DateTimeOffset.UtcNow;
+                            inventory.LastSeen = auction.LastUpdated;
                         }
                     }
                     
@@ -127,7 +131,7 @@ public class AuctionScannerService
             }
             
             await _dbContext.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation("Completed processing expired auctions");
+            _logger.LogInformation("Completed processing expired auctions in {Elapsed}", sw.Elapsed);
         }
         catch (Exception ex)
         {

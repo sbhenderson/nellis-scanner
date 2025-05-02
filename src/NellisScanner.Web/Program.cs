@@ -53,13 +53,13 @@ app.UseHangfireDashboard();
 
 // Configure recurring jobs
 RecurringJob.AddOrUpdate<AuctionScannerService>(
-    "scan-each-category", 
-    service => service.ScanEachCategoryAsync(CancellationToken.None), 
+    "scan-each-category",
+    service => service.ScanEachCategoryAsync(CancellationToken.None),
     "0 */8 * * *");  // Run every 8 hours
 
 RecurringJob.AddOrUpdate<AuctionScannerService>(
-    "update-closed-auctions", 
-    service => service.UpdateClosedAuctionsAsync(CancellationToken.None), 
+    "update-closed-auctions",
+    service => service.UpdateClosedAuctionsAsync(CancellationToken.None),
     "*/30 * * * *");  // Run every 30 minutes
 
 app.MapRazorComponents<App>()
@@ -76,4 +76,17 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-app.Run();
+if (app.Configuration.GetValue<bool?>("RunOnce") == true)
+{
+    using var scope = app.Services.CreateScope();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("Running one-time tasks...");
+    var scannerService = scope.ServiceProvider.GetRequiredService<AuctionScannerService>();
+    await scannerService.ScanEachCategoryAsync(CancellationToken.None);
+    await scannerService.UpdateClosedAuctionsAsync(CancellationToken.None);
+    logger.LogInformation("Completed one-time tasks...");
+}
+else
+{
+    app.Run();
+}
