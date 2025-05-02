@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NellisScanner.Web.Migrations
 {
     [DbContext(typeof(NellisScannerDbContext))]
-    [Migration("20250502203955_RestructuringInventoryNumber")]
-    partial class RestructuringInventoryNumber
+    [Migration("20250502205046_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
