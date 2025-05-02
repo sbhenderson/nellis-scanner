@@ -32,7 +32,7 @@ namespace NellisScanner.Web.Tests.Components
         public async Task AuctionsPage_ShouldDisplayAuctions_WhenDataIsAvailable()
         {
             // Arrange
-            SeedDatabaseWithTestData();
+            await SeedDatabaseWithTestData();
 
             // Act
             var cut = RenderComponent<Auctions>();
@@ -40,14 +40,14 @@ namespace NellisScanner.Web.Tests.Components
             // Assert
             // Wait for auctions to load
             cut.WaitForElement("div.bg-white");
-            
+
             // Should display 5 auction cards (default page size is 12, we have 5 items)
             var auctionCards = cut.FindAll("div.bg-white");
             Assert.Equal(5, auctionCards.Count());
-            
+
             // Check that auction titles are displayed
             var titles = cut.Markup;
-            
+
             Assert.Contains("Laptop", titles);
             Assert.Contains("Smartphone", titles);
         }
@@ -56,25 +56,25 @@ namespace NellisScanner.Web.Tests.Components
         public async Task AuctionsPage_ShouldFilterBySearchTerm()
         {
             // Arrange
-            SeedDatabaseWithTestData();
+            await SeedDatabaseWithTestData();
 
             // Act
             var cut = RenderComponent<Auctions>();
-            
+
             // Wait for initial load
             cut.WaitForElement("div.bg-white");
-            
+
             // Find the search input and enter a search term
             var searchInput = cut.Find("input[type='text']");
             searchInput.Input("Laptop");
-            
+
             // Click the search button (not submitting a form)
             var searchButton = cut.Find("button");
             searchButton.Click();
-            
+
             // Wait for the filtered results
             cut.WaitForState(() => cut.FindAll("div.bg-white").Count() < 5);
-            
+
             // Assert - check if markup contains "Laptop" but not other product names
             var markup = cut.Markup;
             Assert.Contains("Laptop", markup);
@@ -85,24 +85,24 @@ namespace NellisScanner.Web.Tests.Components
         public async Task AuctionsPage_ShouldSortAuctions()
         {
             // Arrange
-            SeedDatabaseWithTestData();
+            await SeedDatabaseWithTestData();
 
             // Act
             var cut = RenderComponent<Auctions>();
-            
+
             // Wait for initial load
             cut.WaitForElement("div.bg-white");
-            
+
             // Find and change the sort select - look for any select element
             var sortSelect = cut.Find("select");
             sortSelect.Change("current_asc");
-            
+
             // Wait for the sorting to take effect
             await Task.Delay(200);
-            
+
             // Assert - check if the cheapest item (Headphones) appears before more expensive items
             var markup = cut.Markup;
-            
+
             // Check if the Headphones item contains the price $49.99 somewhere in the markup
             Assert.Contains("Headphones", markup);
             Assert.Contains("49.99", markup);
@@ -112,37 +112,37 @@ namespace NellisScanner.Web.Tests.Components
         public async Task AuctionsPage_ShouldShowEmptyState_WhenNoResults()
         {
             // Arrange
-            SeedDatabaseWithTestData();
+            await SeedDatabaseWithTestData();
 
             // Act
             var cut = RenderComponent<Auctions>();
-            
+
             // Wait for initial load
             cut.WaitForElement("div.bg-white");
-            
+
             // Search for something that doesn't exist
             var searchInput = cut.Find("input[type='text']");
             searchInput.Input("NonExistentProduct");
-            
+
             // Click the search button
             var searchButton = cut.Find("button");
             searchButton.Click();
-            
+
             // Wait for the component to update and show the empty state
-            cut.WaitForState(() => 
-                cut.Markup.Contains("No auctions found") || 
+            cut.WaitForState(() =>
+                cut.Markup.Contains("No auctions found") ||
                 !cut.FindAll("div.bg-white").Any());
-            
+
             // Assert - check if markup contains the empty state message
             var markup = cut.Markup;
             Assert.Contains("No auctions found", markup);
         }
 
-        private void SeedDatabaseWithTestData()
+        private async Task SeedDatabaseWithTestData()
         {
             // Clear any existing data
             _dbContext.Auctions.RemoveRange(_dbContext.Auctions);
-            _dbContext.SaveChanges();
+            await _dbContext.SaveChangesAsync();
 
             // Setup current time for testing
             var now = DateTimeOffset.UtcNow;
@@ -160,7 +160,7 @@ namespace NellisScanner.Web.Tests.Components
                     CloseTime = now.AddDays(3),
                     LastUpdated = now,
                     BidCount = 12,
-                    InventoryNumber = "INV-101"
+                    InventoryNumber = 101
                 },
                 new AuctionItem {
                     Id = 102,
@@ -172,7 +172,7 @@ namespace NellisScanner.Web.Tests.Components
                     CloseTime = now.AddDays(2),
                     LastUpdated = now,
                     BidCount = 8,
-                    InventoryNumber = "INV-102"
+                    InventoryNumber = 102
                 },
                 new AuctionItem {
                     Id = 103,
@@ -184,7 +184,7 @@ namespace NellisScanner.Web.Tests.Components
                     CloseTime = now.AddHours(5),
                     LastUpdated = now,
                     BidCount = 15,
-                    InventoryNumber = "INV-103"
+                    InventoryNumber = 103
                 },
                 new AuctionItem {
                     Id = 104,
@@ -196,7 +196,7 @@ namespace NellisScanner.Web.Tests.Components
                     CloseTime = now.AddDays(1),
                     LastUpdated = now,
                     BidCount = 5,
-                    InventoryNumber = "INV-104"
+                    InventoryNumber = 104
                 },
                 new AuctionItem {
                     Id = 105,
@@ -208,10 +208,10 @@ namespace NellisScanner.Web.Tests.Components
                     CloseTime = now.AddDays(4),
                     LastUpdated = now,
                     BidCount = 10,
-                    InventoryNumber = "INV-105"
+                    InventoryNumber = 105
                 }
             });
-            _dbContext.SaveChanges();
+            await _dbContext.SaveChangesAsync();
         }
     }
 }

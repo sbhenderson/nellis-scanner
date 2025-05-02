@@ -132,7 +132,7 @@ namespace NellisScanner.Web.Tests.Components
                     CloseTime = now.AddDays(1),
                     LastUpdated = now,
                     BidCount = 5,
-                    InventoryNumber = "INV-HV-001"
+                    InventoryNumber = 1L
                 },
                 new AuctionItem {
                     Id = 2,
@@ -144,7 +144,7 @@ namespace NellisScanner.Web.Tests.Components
                     CloseTime = now.AddDays(2),
                     LastUpdated = now,
                     BidCount = 3,
-                    InventoryNumber = "INV-MV-002"
+                    InventoryNumber = 2L
                 },
                 new AuctionItem {
                     Id = 3,
@@ -157,7 +157,7 @@ namespace NellisScanner.Web.Tests.Components
                     CloseTime = includeClosingSoon ? now.AddMinutes(15) : now.AddDays(1),
                     LastUpdated = now,
                     BidCount = 10,
-                    InventoryNumber = "INV-CS-003"
+                    InventoryNumber = 3L
                 },
                 new AuctionItem {
                     Id = 4,
@@ -170,7 +170,7 @@ namespace NellisScanner.Web.Tests.Components
                     CloseTime = now.AddDays(-1),
                     LastUpdated = now,
                     BidCount = 7,
-                    InventoryNumber = "INV-CL-004"
+                    InventoryNumber = 4L
                 }
             });
             _dbContext.SaveChanges();

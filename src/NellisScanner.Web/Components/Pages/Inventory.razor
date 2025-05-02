@@ -373,7 +373,7 @@
             if (!string.IsNullOrWhiteSpace(SearchTerm))
             {
                 query = query.Where(i => 
-                    i.InventoryNumber.Contains(SearchTerm) || 
+                    i.InventoryNumber.ToString().Contains(SearchTerm) || 
                     (i.Description != null && i.Description.Contains(SearchTerm)));
             }
 

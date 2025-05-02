@@ -58,7 +58,7 @@ namespace NellisScanner.Web.Tests.Services
                     OpenTime = DateTimeOffset.UtcNow.AddDays(-1),
                     CloseTime = DateTimeOffset.UtcNow.AddDays(1),
                     BidCount = 5,
-                    InventoryNumber = "INV-001"
+                    InventoryNumber = "1"
                 }
             };
 
@@ -126,7 +126,7 @@ namespace NellisScanner.Web.Tests.Services
                 OpenTime = DateTimeOffset.UtcNow.AddDays(-2),
                 CloseTime = DateTimeOffset.UtcNow.AddMinutes(-31), // Past close time by more than 30 minutes
                 LastUpdated = DateTimeOffset.UtcNow.AddHours(-1),
-                InventoryNumber = "INV-5001"
+                InventoryNumber = 5001L
             };
             _dbContext.Auctions.Add(expiredAuction);
             await _dbContext.SaveChangesAsync();
@@ -137,7 +137,7 @@ namespace NellisScanner.Web.Tests.Services
                 ProductId = 5001,
                 State = AuctionState.Closed,
                 Price = 359.99M, // Final price
-                InventoryNumber = "INV-5001",
+                InventoryNumber = 5001L,
                 TimeRetrieved = DateTimeOffset.UtcNow
             };
 
@@ -187,7 +187,7 @@ namespace NellisScanner.Web.Tests.Services
                 OpenTime = DateTimeOffset.UtcNow.AddDays(-1),
                 CloseTime = DateTimeOffset.UtcNow.AddDays(1),
                 BidCount = 8, // Bid count has increased
-                InventoryNumber = "INV-2001" // Now has an inventory number
+                InventoryNumber = "2001" // Now has an inventory number
             };
 
             var testResponse = new SearchResponse
@@ -228,7 +228,7 @@ namespace NellisScanner.Web.Tests.Services
             Assert.Equal("Updated Auction Title", updatedAuction.Title);
             Assert.Equal(149.99M, updatedAuction.CurrentPrice);
             Assert.Equal(8, updatedAuction.BidCount);
-            Assert.Equal("INV-2001", updatedAuction.InventoryNumber);
+            Assert.Equal(2001L, updatedAuction.InventoryNumber);
         }
 
         [Fact]
@@ -245,7 +245,7 @@ namespace NellisScanner.Web.Tests.Services
                 OpenTime = DateTimeOffset.UtcNow.AddDays(-1),
                 CloseTime = DateTimeOffset.UtcNow.AddDays(1),
                 BidCount = 3,
-                InventoryNumber = "INV-3001"
+                InventoryNumber = "3001"
             };
 
             var testResponse = new SearchResponse
@@ -284,11 +284,11 @@ namespace NellisScanner.Web.Tests.Services
             // Verify auction was created
             var auction = await _dbContext.Auctions.FindAsync(3001);
             Assert.NotNull(auction);
-            Assert.Equal("INV-3001", auction.InventoryNumber);
+            Assert.Equal(3001, auction.InventoryNumber);
 
             // Verify inventory item was created
             var inventory = await _dbContext.Inventory
-                .FirstOrDefaultAsync(i => i.InventoryNumber == "INV-3001");
+                .FirstOrDefaultAsync(i => i.InventoryNumber == 3001);
             Assert.NotNull(inventory);
             Assert.Equal("New Product with Inventory", inventory.Description);
         }
@@ -307,7 +307,7 @@ namespace NellisScanner.Web.Tests.Services
                 IsClosed = false,
                 OpenTime = DateTimeOffset.UtcNow.AddDays(-3),
                 CloseTime = DateTimeOffset.UtcNow.AddDays(-2),
-                InventoryNumber = "SHARED-INV-001"
+                InventoryNumber = "12001"
             };
 
             var testResponse1 = new SearchResponse
@@ -352,7 +352,7 @@ namespace NellisScanner.Web.Tests.Services
                 IsClosed = false,
                 OpenTime = DateTimeOffset.UtcNow.AddDays(-1),
                 CloseTime = DateTimeOffset.UtcNow.AddDays(1),
-                InventoryNumber = "SHARED-INV-001"
+                InventoryNumber = "12001"
             };
 
             var testResponse2 = new SearchResponse
@@ -388,13 +388,13 @@ namespace NellisScanner.Web.Tests.Services
             // Assert
             // Verify both auctions exist
             var auctions = await _dbContext.Auctions
-                .Where(a => a.InventoryNumber == "SHARED-INV-001")
+                .Where(a => a.InventoryNumber == 12001)
                 .ToListAsync();
             Assert.Equal(2, auctions.Count);
             
             // Verify a single inventory item exists with that number
             var inventoryItems = await _dbContext.Inventory
-                .Where(i => i.InventoryNumber == "SHARED-INV-001")
+                .Where(i => i.InventoryNumber == 12001)
                 .ToListAsync();
             Assert.Single(inventoryItems);
         }

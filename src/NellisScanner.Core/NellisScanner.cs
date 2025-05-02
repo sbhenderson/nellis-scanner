@@ -266,7 +266,11 @@ public class NellisScanner : INellisScanner
         var inventoryMatch = Regex.Match(html, @"<p class=""text-left font-medium"">Inventory Number<\/p>\s*<p>([0-9]+)<\/p>");
         if (inventoryMatch.Success && inventoryMatch.Groups.Count > 1)
         {
-            result.InventoryNumber = inventoryMatch.Groups[1].Value;
+            if(long.TryParse(inventoryMatch.Groups[1].Value, out long inventoryNumber))
+            {
+                result.InventoryNumber = inventoryNumber;
+            }
+            result.InventoryNumber = -1;
         }
         
         return result;
@@ -355,7 +359,7 @@ public class AuctionPriceInfo
 {
     public int ProductId { get; set; }
     public decimal Price { get; set; }
-    public string? InventoryNumber { get; set; }
+    public long InventoryNumber { get; set; }
     public AuctionState State { get; set; }
     public DateTimeOffset TimeRetrieved { get; set; }
 }

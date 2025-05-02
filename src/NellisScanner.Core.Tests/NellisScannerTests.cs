@@ -28,6 +28,7 @@ public class NellisScannerTests
         Assert.NotEmpty(result.Products);
         Assert.NotNull(result.Algolia);
         Assert.NotEqual(0, result.Algolia.NumberOfPages);
+        Assert.True(result.Products.All(p=>p.InventoryNumberLong > 0 ));
         // Output some information about the first product
         var firstProduct = result.Products.First();
         _output.WriteLine($"First product: {firstProduct.Title}");

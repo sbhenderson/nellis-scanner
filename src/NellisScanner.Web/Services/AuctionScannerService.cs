@@ -31,7 +31,7 @@ public class AuctionScannerService
     {
         _logger.LogInformation("Starting scan of all auction categories");
         var sw = Stopwatch.StartNew();
-        foreach(var category in Enum.GetValues<Category>())
+        foreach (var category in Enum.GetValues<Category>())
         {
             await ScanCategoryAsync(category, cancellationToken);
         }
@@ -46,20 +46,20 @@ public class AuctionScannerService
         try
         {
             _logger.LogInformation("Starting scan of {Category} auctions", category);
-            
+
             // Collect all products from all pages before processing them
             var allProducts = new List<Product>(600);
-            
+
             // Get first page of auctions
             var response = await _nellisScanner.GetAuctionItemsAsync(
                 category: category,
                 pageNumber: 0,
                 pageSize: 120,
                 cancellationToken: cancellationToken);
-            
+
             // Add products from first page
             allProducts.AddRange(response.Products);
-            
+
             // Check if there are multiple pages and fetch them
             if (response.Algolia?.NumberOfPages > 1)
             {
@@ -71,15 +71,15 @@ public class AuctionScannerService
                         pageNumber: page,
                         pageSize: 120,
                         cancellationToken: cancellationToken);
-                    
+
                     allProducts.AddRange(response.Products);
                 }
             }
-            
+
             // Process all products in a single batch
             _logger.LogInformation("Fetched total of {Count} products for {Category}", allProducts.Count, category);
-            await ProcessProductsAsync(allProducts, cancellationToken);
-            
+            await ProcessProductsAsync(allProducts, category, cancellationToken);
+
             _logger.LogInformation("Completed scan of {Category} auctions", category);
         }
         catch (Exception ex)
@@ -98,41 +98,41 @@ public class AuctionScannerService
         {
             _logger.LogInformation("Processing expired auctions to mark as closed");
             var sw = Stopwatch.StartNew();
-            
+
             // Get auctions that are still active but past their close time by at least 30 minutes
             var thirtyMinutesAgo = DateTimeOffset.UtcNow.AddMinutes(-30);
             var potentiallyClosedAuctions = await _dbContext.Auctions
-                .Where(a => a.State == AuctionState.Active && 
+                .Where(a => a.State == AuctionState.Active &&
                            a.CloseTime < thirtyMinutesAgo)
                 .ToListAsync(cancellationToken);
-            
+
             _logger.LogInformation("Found {Count} expired auctions to update", potentiallyClosedAuctions.Count);
-            
+
             foreach (var auction in potentiallyClosedAuctions)
             {
                 try
                 {
                     var priceInfo = await _nellisScanner.GetAuctionPriceInfoAsync(
                         auction.Id, auction.Title ?? "", cancellationToken);
-                    
+
                     // Update the auction with the final price
                     auction.State = priceInfo.State;
                     auction.FinalPrice = priceInfo.Price;
                     auction.LastUpdated = DateTimeOffset.UtcNow;
-                    
+
                     // Update the inventory last seen date
-                    if (!string.IsNullOrEmpty(priceInfo.InventoryNumber))
+                    if (priceInfo.InventoryNumber > 0L)
                     {
                         var inventory = await EnsureInventoryExistsAsync(
                             _dbContext, priceInfo.InventoryNumber, auction.Title, cancellationToken);
-                        
+
                         if (inventory != null)
                         {
                             inventory.LastSeen = auction.LastUpdated;
                         }
                     }
-                    
-                    _logger.LogInformation("Updated closed auction {Id} with final price {Price}", 
+
+                    _logger.LogInformation("Updated closed auction {Id} with final price {Price}",
                         auction.Id, auction.FinalPrice);
                 }
                 catch (Exception ex)
@@ -140,7 +140,7 @@ public class AuctionScannerService
                     _logger.LogError(ex, "Error updating closed auction {Id}", auction.Id);
                 }
             }
-            
+
             await _dbContext.SaveChangesAsync(cancellationToken);
             _logger.LogInformation("Completed processing expired auctions in {Elapsed}", sw.Elapsed);
         }
@@ -149,11 +149,11 @@ public class AuctionScannerService
             _logger.LogError(ex, "Error processing expired auctions");
         }
     }
-    
+
     /// <summary>
     /// Process a list of products and save/update them in the database using bulk operations
     /// </summary>
-    private async Task ProcessProductsAsync(List<Product> products, CancellationToken cancellationToken)
+    private async Task ProcessProductsAsync(List<Product> products, Category category, CancellationToken cancellationToken)
     {
         try
         {
@@ -164,22 +164,22 @@ public class AuctionScannerService
             }
 
             _logger.LogInformation("Processing {Count} products with bulk operations", products.Count);
-            
+
             var now = DateTimeOffset.UtcNow;
-            
+
             // Prepare list of auction items to bulk upsert
             var auctionItems = new List<AuctionItem>();
-            
+
             // Track inventory numbers for bulk inventory processing
-            var inventoryNumbers = new HashSet<string>();
-            
+            var inventoryNumbers = new HashSet<long>();
+
             foreach (var product in products)
             {
                 var auctionItem = new AuctionItem
                 {
                     Id = product.Id,
                     Title = product.Title,
-                    InventoryNumber = product.InventoryNumber,
+                    InventoryNumber = product.InventoryNumberLong,
                     RetailPrice = product.RetailPrice,
                     CurrentPrice = product.CurrentPrice,
                     FinalPrice = 0, // Will be set when auction closes
@@ -189,29 +189,29 @@ public class AuctionScannerService
                     CloseTime = product.CloseTime,
                     LastUpdated = now
                 };
-                
+
                 // Set location if available
                 if (product.Location != null)
                 {
                     auctionItem.Location = $"{product.Location.City}, {product.Location.State}";
                 }
-                
+
                 auctionItems.Add(auctionItem);
-                
+
                 // Collect inventory numbers
                 if (!string.IsNullOrEmpty(product.InventoryNumber))
                 {
-                    inventoryNumbers.Add(product.InventoryNumber);
+                    inventoryNumbers.Add(product.InventoryNumberLong);
                 }
             }
-            
+
             // Get existing auctions to determine which ones should preserve the Closed state
             var existingAuctionIds = auctionItems.Select(a => a.Id).ToList();
             var existingClosedAuctions = await _dbContext.Auctions
                 .Where(a => existingAuctionIds.Contains(a.Id) && a.State == AuctionState.Closed)
                 .Select(a => a.Id)
                 .ToListAsync(cancellationToken);
-            
+
             // Preserve Closed state for auctions that are already closed in our database
             foreach (var auction in auctionItems)
             {
@@ -220,19 +220,20 @@ public class AuctionScannerService
                     auction.State = AuctionState.Closed;
                 }
             }
-            
+
             // Bulk insert/update auctions
-            var bulkConfig = new BulkConfig 
-            { 
+            var bulkConfig = new BulkConfig
+            {
                 PreserveInsertOrder = false,
                 SetOutputIdentity = false,
-                UpdateByProperties = [ nameof(AuctionItem.Id) ],
-                PropertiesToExcludeOnUpdate = [ 
-                    nameof(AuctionItem.Id), 
+                UpdateByProperties = [nameof(AuctionItem.Id)],
+                PropertiesToExcludeOnUpdate = [
+                    nameof(AuctionItem.Id),
                     nameof(AuctionItem.FinalPrice) // Don't update FinalPrice as it's set separately when auction closes
                 ]
             };
 
+            await ProcessInventoryItemsAsync(products, category, cancellationToken);
             await EfCoreHelpers.BulkInsertOrUpdateEntitiesAsync(
                 _dbContext,
                 auctionItems,
@@ -240,83 +241,87 @@ public class AuctionScannerService
                 new List<string> { nameof(AuctionItem.Id) },
                 new List<string> { nameof(AuctionItem.Id), nameof(AuctionItem.FinalPrice) },
                 cancellationToken);
-            
+
             _logger.LogInformation("Completed bulk insert/update of {Count} auctions", auctionItems.Count);
-            
+
             // Handle inventory items in bulk
-            await ProcessInventoryItemsAsync(inventoryNumbers, products, cancellationToken);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error in bulk processing of products");
         }
     }
-    
+
     /// <summary>
     /// Process inventory items in bulk
     /// </summary>
     private async Task ProcessInventoryItemsAsync(
-        HashSet<string> inventoryNumbers,
         List<Product> products,
+        Category category,
         CancellationToken cancellationToken)
     {
-        if (inventoryNumbers.Count == 0)
+        if (products.Count == 0)
         {
             return;
         }
-        
-        _logger.LogInformation("Processing {Count} inventory items", inventoryNumbers.Count);
-        
+
+        _logger.LogInformation("Processing {Count} product items", products.Count);
         var now = DateTimeOffset.UtcNow;
-        
+
+        var inventoryItems = products
+            .Select(p => new InventoryItem()
+            {
+                InventoryNumber = p.InventoryNumberLong,
+                Description = p.Title,
+                FirstSeen = now,
+                LastSeen = now,
+                CategoryName = category.ToString()
+            }).ToDictionary(inv => inv.InventoryNumber);
+        var inventoryNumbers = inventoryItems.Keys.ToHashSet();
+
         // Get existing inventory items
         var existingInventory = await _dbContext.Inventory
             .Where(i => inventoryNumbers.Contains(i.InventoryNumber))
             .ToDictionaryAsync(i => i.InventoryNumber, cancellationToken);
-        
+
         // Create collection for bulk insert/update
         var inventoryItemsToUpsert = new List<InventoryItem>(products.Count);
-        
+
         foreach (var inventoryNumber in inventoryNumbers)
         {
             // Find corresponding product
-            var matchingProduct = products.FirstOrDefault(p => p.InventoryNumber == inventoryNumber);
-            string? description = matchingProduct?.Title;
-            
+            var invItem = inventoryItems[inventoryNumber];
+            var description = invItem.Description ?? string.Empty;
+            if (description.Length > 500)
+            {
+                description = description[..500];
+            }
+
             if (existingInventory.TryGetValue(inventoryNumber, out var inventory))
             {
                 // Existing inventory, update
                 inventory.LastSeen = now;
-                
+
                 // Update description if necessary
                 if (string.IsNullOrEmpty(inventory.Description) && !string.IsNullOrEmpty(description))
                 {
                     inventory.Description = description;
                 }
-                
                 inventoryItemsToUpsert.Add(inventory);
             }
             else
             {
                 // New inventory item
-                var newInventory = new InventoryItem
-                {
-                    InventoryNumber = inventoryNumber,
-                    Description = description,
-                    FirstSeen = now,
-                    LastSeen = now
-                };
-                
-                inventoryItemsToUpsert.Add(newInventory);
+                inventoryItemsToUpsert.Add(invItem);
             }
         }
-        
+
         // Bulk insert/update inventory
-        var bulkConfig = new BulkConfig 
+        var bulkConfig = new BulkConfig
         {
             PreserveInsertOrder = false,
             SetOutputIdentity = true,
-            UpdateByProperties = [ nameof(InventoryItem.InventoryNumber) ]
+            UpdateByProperties = [nameof(InventoryItem.InventoryNumber)]
         };
 
         await EfCoreHelpers.BulkInsertOrUpdateEntitiesAsync(
@@ -326,22 +331,22 @@ public class AuctionScannerService
             new List<string> { nameof(InventoryItem.InventoryNumber) },
             null,
             cancellationToken);
-        
+
         _logger.LogInformation("Completed bulk insert/update of {Count} inventory items", inventoryItemsToUpsert.Count);
     }
-    
+
     /// <summary>
     /// Ensures that an inventory item exists in the database
     /// </summary>
     private async Task<InventoryItem?> EnsureInventoryExistsAsync(
-        NellisScannerDbContext dbContext, 
-        long inventoryNumber, 
-        string? productTitle, 
+        NellisScannerDbContext dbContext,
+        long inventoryNumber,
+        string? productTitle,
         CancellationToken cancellationToken)
     {
         var inventory = await dbContext.Inventory
             .FindAsync(inventoryNumber, cancellationToken);
-        
+
         if (inventory == null)
         {
             // Create new inventory item
@@ -352,21 +357,21 @@ public class AuctionScannerService
                 FirstSeen = DateTimeOffset.UtcNow,
                 LastSeen = DateTimeOffset.UtcNow
             };
-            
+
             dbContext.Inventory.Add(inventory);
         }
         else
         {
             // Update last seen date
             inventory.LastSeen = DateTimeOffset.UtcNow;
-            
+
             // Update description if it's empty and we have a title
             if (string.IsNullOrEmpty(inventory.Description) && !string.IsNullOrEmpty(productTitle))
             {
                 inventory.Description = productTitle;
             }
         }
-        
+
         return inventory;
     }
 }

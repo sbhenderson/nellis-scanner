@@ -107,7 +107,7 @@ namespace NellisScanner.Web.Tests.Integration
                             OpenTime = DateTimeOffset.UtcNow.AddDays(-1),
                             CloseTime = DateTimeOffset.UtcNow.AddDays(5),
                             BidCount = 7,
-                            InventoryNumber = "INT-TEST-001"
+                            InventoryNumber = "1828381"
                         }
                     }
                 };
@@ -207,7 +207,7 @@ namespace NellisScanner.Web.Tests.Integration
             Assert.Single(auctions);
             Assert.Equal("Test Integration Product", auctions[0].Title);
             Assert.Equal(299.99M, auctions[0].CurrentPrice);
-            Assert.Equal("INT-TEST-001", auctions[0].InventoryNumber);
+            Assert.Equal(1828381L, auctions[0].InventoryNumber);
         }
 
         [Fact]
@@ -228,7 +228,7 @@ namespace NellisScanner.Web.Tests.Integration
                 OpenTime = DateTimeOffset.UtcNow.AddDays(-2),
                 CloseTime = DateTimeOffset.UtcNow.AddMinutes(-31), // Past close time by more than 30 minutes
                 LastUpdated = DateTimeOffset.UtcNow.AddHours(-1),
-                InventoryNumber = "INT-TEST-EXPIRED"
+                InventoryNumber = 71237283L
             };
             dbContext.Auctions.Add(expiredAuction);
             await dbContext.SaveChangesAsync();
@@ -246,7 +246,7 @@ namespace NellisScanner.Web.Tests.Integration
                     ProductId = 8001,
                     State = AuctionState.Closed,
                     Price = 219.99M,
-                    InventoryNumber = "INT-TEST-EXPIRED",
+                    InventoryNumber = 71237283L,
                     TimeRetrieved = DateTimeOffset.UtcNow
                 });
                 

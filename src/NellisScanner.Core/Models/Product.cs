@@ -12,6 +12,7 @@ public class Product
     public string? Title { get; set; }
     [JsonPropertyName("inventoryNumber")]
     public string? InventoryNumber { get; set; }
+    public long InventoryNumberLong => InventoryNumber is not null ? long.Parse(InventoryNumber) : -1;
     [JsonPropertyName("photos")]
     public List<Photo> Photos { get; set; } = new();
     [JsonPropertyName("retailPrice")]

@@ -22,7 +22,7 @@ public class NellisScannerDbContext : DbContext
             entity.HasKey(p => p.Id);
             entity.Property(p => p.Id).ValueGeneratedNever();  // Use the ID from the API
             entity.Property(p => p.Title).HasMaxLength(500);
-            entity.Property(p => p.InventoryNumber).HasMaxLength(50).IsRequired(false);
+            entity.Property(p => p.InventoryNumber);
             entity.Property(p => p.RetailPrice).HasColumnType("decimal(18,2)");
             entity.Property(p => p.CurrentPrice).HasColumnType("decimal(18,2)");
             entity.Property(p => p.FinalPrice).HasColumnType("decimal(18,2)");
@@ -36,21 +36,14 @@ public class NellisScannerDbContext : DbContext
             entity.HasOne(a => a.Inventory)
                 .WithMany(i => i.Auctions)
                 .HasForeignKey(a => a.InventoryNumber)
-                .HasPrincipalKey(i => i.InventoryNumber)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.SetNull);
+                .HasPrincipalKey(i => i.InventoryNumber);
         });
 
         modelBuilder.Entity<InventoryItem>(entity =>
         {
-            entity.HasKey(i => i.Id);
-            entity.Property(i => i.Id).UseIdentityColumn();
-            entity.Property(i => i.InventoryNumber).HasMaxLength(50).IsRequired();
+            entity.HasKey(i => i.InventoryNumber);
             entity.Property(i => i.Description).HasMaxLength(500);
             entity.Property(i => i.CategoryName).HasMaxLength(100);
-            
-            // Make inventory number unique
-            entity.HasIndex(i => i.InventoryNumber).IsUnique();
         });
     }
 }
@@ -65,7 +58,7 @@ public class AuctionItem
     
     // Auction details
     public string? Title { get; set; }
-    public string? InventoryNumber { get; set; }
+    public long InventoryNumber { get; set; }
     public decimal RetailPrice { get; set; }
     public decimal CurrentPrice { get; set; } // Current price during auction
     public decimal FinalPrice { get; set; } // Final price when auction is closed
@@ -86,10 +79,9 @@ public class AuctionItem
 public class InventoryItem
 {
     // Auto-generated ID
-    public int Id { get; set; }
     
     // The inventory number used by Nellis Auction
-    public string InventoryNumber { get; set; } = null!;
+    public long InventoryNumber { get; set; }
     
     // Product details
     public string? Description { get; set; }
