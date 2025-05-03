@@ -131,18 +131,22 @@ public class NellisScanner : INellisScanner
     private static string BuildQueryString(Dictionary<string, string> parameters)
     {
         return string.Join("&", parameters.Select(kvp => 
-            string.IsNullOrEmpty(kvp.Value) ? HttpUtility.UrlEncode(kvp.Key) : 
-            $"{kvp.Key}={HttpUtility.UrlEncode(kvp.Value)}"));
+            string.IsNullOrEmpty(kvp.Value) ? CustomUrlEncode(kvp.Key) : 
+            $"{kvp.Key}={CustomUrlEncode(kvp.Value)}"));
+    }
+    private static string CustomUrlEncode(string value)
+    {
+        return string.Join("+", value.Split(' ').Select(HttpUtility.UrlEncode));
     }
     /// <summary>
     /// Builds cookie header string from a dictionary of parameters
     /// </summary>
     private static string BuildCookieString(Dictionary<string, string> cookies)
     {
-        return string.Join("; ", cookies.Select(kvp => 
-            string.IsNullOrEmpty(kvp.Value) ? HttpUtility.UrlEncode(kvp.Key) : 
+        return string.Join("; ", cookies.Select(kvp =>
+            string.IsNullOrEmpty(kvp.Value) ? HttpUtility.UrlEncode(kvp.Key) :
             $"{kvp.Key}={kvp.Value}"));
-            // $"{kvp.Key}={HttpUtility.UrlEncode(kvp.Value)}"));
+        // $"{kvp.Key}={HttpUtility.UrlEncode(kvp.Value)}"));
     }
     
     /// <summary>

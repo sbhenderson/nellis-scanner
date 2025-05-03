@@ -16,10 +16,10 @@ internal static class UrlHelpers
         return category switch
         {
             Category.Electronics => "Electronics",
-            Category.HomeAndHousehold => "Home+%26+Household+Essentials",
-            Category.HomeImprovement => "Home+Improvement",
-            Category.SmartHome => "Smart+Home",
-            Category.OfficeAndSchool => "Office+%26+School+Supplies",
+            Category.HomeAndHousehold => "Home & Household Essentials",
+            Category.HomeImprovement => "Home Improvement",
+            Category.SmartHome => "Smart Home",
+            Category.OfficeAndSchool => "Office & School Supplies",
             Category.Automotive => "Automotive",
             _ => string.Empty
         };

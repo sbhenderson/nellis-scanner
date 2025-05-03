@@ -36,6 +36,25 @@ public class NellisScannerTests
         _output.WriteLine($"Current price: ${firstProduct.CurrentPrice}");
         _output.WriteLine($"Close time: {firstProduct.CloseTime}");
     }
+    [Fact]
+    public async Task GetOfficeSuppliesHighToLow_ReturnsProducts()
+    {
+        // Act
+        var result = await _scanner.GetAuctionItemsAsync(Models.Category.OfficeAndSchool);
+        
+        // Assert
+        Assert.NotNull(result);
+        Assert.NotEmpty(result.Products);
+        Assert.NotNull(result.Algolia);
+        Assert.NotEqual(0, result.Algolia.NumberOfPages);
+        Assert.True(result.Products.All(p=>p.InventoryNumberLong > 0 ));
+        // Output some information about the first product
+        var firstProduct = result.Products.First();
+        _output.WriteLine($"First product: {firstProduct.Title}");
+        _output.WriteLine($"Retail price: ${firstProduct.RetailPrice}");
+        _output.WriteLine($"Current price: ${firstProduct.CurrentPrice}");
+        _output.WriteLine($"Close time: {firstProduct.CloseTime}");
+    }
     
     [Fact]
     public async Task GetAuctionPriceInfo_ReturnsData()
