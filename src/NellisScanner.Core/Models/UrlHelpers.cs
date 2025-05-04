@@ -1,12 +1,13 @@
 using System.ComponentModel;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace NellisScanner.Core.Models;
 
 /// <summary>
 /// Helper methods for building URLs and working with query parameters
 /// </summary>
-internal static class UrlHelpers
+public static class UrlHelpers
 {
     /// <summary>
     /// Gets the URL-friendly taxonomy string for a given category
@@ -45,5 +46,23 @@ internal static class UrlHelpers
 
         var attribute = field.GetCustomAttribute<DescriptionAttribute>();
         return attribute == null ? value.ToString() : attribute.Description;
+    }
+    /// <summary>
+    /// Generates a URL for a product page on Nellis Auction
+    /// </summary>
+    /// <param name="productId">The ID of the product</param>
+    /// <param name="productName">The name of the product (optional)</param>
+    /// <returns>The URL to the product page</returns>
+    public static string GenerateProductUrl(int productId, string? productName = null)
+    {
+        if (!string.IsNullOrWhiteSpace(productName))
+        {
+            // Create URL-friendly name by replacing spaces with dashes and removing special chars
+            var urlFriendlyName = Regex.Replace(productName, @"[^a-zA-Z0-9\s-]", "")
+                .Replace(" ", "-");
+            return $"https://www.nellisauction.com/p/{urlFriendlyName}/{productId}";
+        }
+
+        return $"https://www.nellisauction.com/p/{productId}";
     }
 }

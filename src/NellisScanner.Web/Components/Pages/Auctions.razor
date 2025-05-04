@@ -14,8 +14,8 @@
     <div class="mb-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <div class="flex">
-                    <input type="text" @bind="SearchTerm" @bind:event="oninput" 
+                <div class="flex mb-2">
+                    <input type="text" @bind="SearchTerm" @bind:event="oninput" @onkeyup="HandleKeyUp"
                            class="flex-1 rounded-l border-gray-300 shadow-xs px-4 py-2 focus:ring-blue-500 focus:border-blue-500" 
                            placeholder="Search by title..." />
                     <button @onclick="ApplyFilters" 
@@ -27,9 +27,14 @@
                         Clear
                     </button>
                 </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="hideClosedAuctions" @bind="HideClosedAuctions" @bind:event="oninput" @onchange="ApplyFilters"
+                           class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                    <label for="hideClosedAuctions" class="ml-2 text-sm text-gray-700">Hide closed auctions</label>
+                </div>
             </div>
             <div>
-                <select @bind="SortBy" class="w-full rounded border-gray-300 shadow-xs px-4 py-2 focus:ring-blue-500 focus:border-blue-500">
+                <select @bind="SortBy" @bind:event="oninput" @onchange="ApplyFilters" class="w-full rounded border-gray-300 shadow-xs px-4 py-2 focus:ring-blue-500 focus:border-blue-500">
                     <option value="retail_desc">Retail Price (High to Low)</option>
                     <option value="retail_asc">Retail Price (Low to High)</option>
                     <option value="current_desc">Current Price (High to Low)</option>
@@ -67,7 +72,9 @@
                     </div>
                     
                     <div class="p-4">
-                        <h5 class="text-lg font-semibold text-gray-800 mb-2 line-clamp-2">@auction.Title</h5>
+                        <h5 class="text-lg font-semibold text-gray-800 mb-2 line-clamp-2">
+                            <a href="@UrlHelpers.GenerateProductUrl(auction.Id, auction.Title)" target="_blank" class="text-blue-600 hover:underline">@auction.Title</a>
+                        </h5>
                         <p class="text-xs text-gray-500 mb-3">
                             Inventory: @auction.InventoryNumber
                         </p>
@@ -100,13 +107,13 @@
         </div>
         
         <div class="flex justify-between items-center mt-8">
-            <button class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" 
+            <button class="px-4 py-2 border border-gray-300 rounded text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" 
                     disabled="@(CurrentPage <= 0)" 
                     @onclick="PreviousPage">
                 Previous
             </button>
             <span class="text-gray-700">Page @(CurrentPage + 1) of @TotalPages</span>
-            <button class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" 
+            <button class="px-4 py-2 border border-gray-300 rounded text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" 
                     disabled="@(CurrentPage >= TotalPages - 1)" 
                     @onclick="NextPage">
                 Next
@@ -123,6 +130,7 @@
     private int TotalPages { get; set; } = 1;
     private string SearchTerm { get; set; } = "";
     private string SortBy { get; set; } = "retail_desc";
+    private bool HideClosedAuctions { get; set; } = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -140,7 +148,13 @@
             // Apply search filter if provided
             if (!string.IsNullOrWhiteSpace(SearchTerm))
             {
-                query = query.Where(a => a.Title != null && a.Title.Contains(SearchTerm));
+                query = query.Where(a => a.Title != null && EF.Functions.ILike(a.Title, $"%{SearchTerm}%"));
+            }
+
+            // Apply filter to hide closed auctions
+            if (HideClosedAuctions)
+            {
+                query = query.Where(a => a.State == AuctionState.Active);
             }
 
             // Apply sorting
@@ -187,6 +201,7 @@
     {
         SearchTerm = "";
         SortBy = "retail_desc";
+        HideClosedAuctions = false;
         CurrentPage = 0;
         await LoadAuctionsAsync();
     }
@@ -206,6 +221,14 @@
         {
             CurrentPage++;
             await LoadAuctionsAsync();
+        }
+    }
+
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await ApplyFilters();
         }
     }
 }

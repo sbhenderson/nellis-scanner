@@ -19,12 +19,12 @@ public class NellisScanner : INellisScanner
     {
         _httpClient = httpClient;
         _logger = logger;
-        
+
         // Configure JSON serialization options
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
-            Converters = 
+            Converters =
             {
                 new JsonStringEnumConverter(),
                 // Custom converter for the Date object in JSON
@@ -32,7 +32,7 @@ public class NellisScanner : INellisScanner
             }
         };
     }
-    
+
     /// <summary>
     /// Fetches auction results with specified category, sorting, and pagination
     /// </summary>
@@ -44,7 +44,7 @@ public class NellisScanner : INellisScanner
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>SearchResponse containing auction products</returns>
     public async Task<SearchResponse> GetAuctionItemsAsync(
-        Category category = Category.Electronics, 
+        Category category = Category.Electronics,
         int pageNumber = 0,
         int pageSize = 120,
         NellisLocations location = NellisLocations.Houston,
@@ -71,22 +71,22 @@ public class NellisScanner : INellisScanner
             {
                 queryParams["Taxonomy+Level+1"] = UrlHelpers.GetCategoryTaxonomyParameter(category);
             }
-            
+
             // Build the URL
             string url = $"https://www.nellisauction.com/search?{BuildQueryString(queryParams)}";
-            _logger.LogDebug("Fetching {Category} auctions data from page {PageNumber} (size: {PageSize})", 
+            _logger.LogDebug("Fetching {Category} auctions data from page {PageNumber} (size: {PageSize})",
                 category.GetDescription(), pageNumber, pageSize);
-            
+
             // Create custom request to add cookie
             var request = new HttpRequestMessage(HttpMethod.Get, url);
-            
+
             // Add shopping location cookie
             request.Headers.Add("Cookie", BuildCookieString(dictionaryCookies));
-            
+
             // Send the request
             var httpResponse = await _httpClient.SendAsync(request, cancellationToken);
             httpResponse.EnsureSuccessStatusCode();
-            
+
             // Deserialize the response
             var response = await httpResponse.Content.ReadFromJsonAsync<SearchResponse>(_jsonOptions, cancellationToken);
             if (response == null)
@@ -94,7 +94,7 @@ public class NellisScanner : INellisScanner
                 _logger.LogWarning("Received null response from Nellis Auction API");
                 return new SearchResponse();
             }
-            
+
             return response;
         }
         catch (Exception ex)
@@ -113,7 +113,7 @@ public class NellisScanner : INellisScanner
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>SearchResponse containing auction products</returns>
     public async Task<SearchResponse> GetElectronicsHighToLowAsync(
-        int page = 0, 
+        int page = 0,
         NellisLocations location = NellisLocations.Houston,
         CancellationToken cancellationToken = default)
     {
@@ -130,8 +130,8 @@ public class NellisScanner : INellisScanner
     /// </summary>
     private static string BuildQueryString(Dictionary<string, string> parameters)
     {
-        return string.Join("&", parameters.Select(kvp => 
-            string.IsNullOrEmpty(kvp.Value) ? CustomUrlEncode(kvp.Key) : 
+        return string.Join("&", parameters.Select(kvp =>
+            string.IsNullOrEmpty(kvp.Value) ? CustomUrlEncode(kvp.Key) :
             $"{kvp.Key}={CustomUrlEncode(kvp.Value)}"));
     }
     private static string CustomUrlEncode(string value)
@@ -148,7 +148,7 @@ public class NellisScanner : INellisScanner
             $"{kvp.Key}={kvp.Value}"));
         // $"{kvp.Key}={HttpUtility.UrlEncode(kvp.Value)}"));
     }
-    
+
     /// <summary>
     /// Fetches a specific product by ID - non functional
     /// </summary>
@@ -156,14 +156,14 @@ public class NellisScanner : INellisScanner
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Product details</returns>
     public async Task<Product?> GetProductAsync(
-        int productId, 
+        int productId,
         CancellationToken cancellationToken = default)
     {
         try
         {
             string url = $"https://www.nellisauction.com/p/{productId}/_data";
             _logger.LogInformation("Fetching product data for ID {ProductId}", productId);
-            
+
             var response = await _httpClient.GetFromJsonAsync<Product>(url, _jsonOptions, cancellationToken);
             return response;
         }
@@ -173,7 +173,8 @@ public class NellisScanner : INellisScanner
             throw;
         }
     }
-    
+
+
     /// <summary>
     /// Retrieves auction price information by parsing the HTML product page
     /// </summary>
@@ -187,31 +188,20 @@ public class NellisScanner : INellisScanner
     {
         try
         {
-            // URL-friendly product name is optional but helps create a valid URL
-            string url;
-            if (!string.IsNullOrWhiteSpace(productName))
-            {
-                // Create URL-friendly name by replacing spaces with dashes and removing special chars
-                var urlFriendlyName = Regex.Replace(productName, @"[^a-zA-Z0-9\s-]", "")
-                    .Replace(" ", "-");
-                url = $"https://www.nellisauction.com/p/{urlFriendlyName}/{productId}";
-            }
-            else
-            {
-                url = $"https://www.nellisauction.com/p/{productId}";
-            }
-            
+            // Use the URL generation method
+            string url = UrlHelpers.GenerateProductUrl(productId, productName);
+
             _logger.LogInformation("Fetching HTML page for product ID {ProductId}", productId);
-            
+
             var response = await _httpClient.GetAsync(url, cancellationToken);
             response.EnsureSuccessStatusCode();
-            
+
             var html = await response.Content.ReadAsStringAsync(cancellationToken);
-            
+
             // Parse HTML to extract price information
             var priceInfo = ParseHtmlForPriceInfo(html);
             priceInfo.ProductId = productId;
-            
+
             return priceInfo;
         }
         catch (Exception ex)
@@ -220,7 +210,7 @@ public class NellisScanner : INellisScanner
             throw;
         }
     }
-    
+
     /// <summary>
     /// Parses the HTML content to extract price and auction state
     /// </summary>
@@ -232,7 +222,7 @@ public class NellisScanner : INellisScanner
         {
             TimeRetrieved = DateTimeOffset.UtcNow
         };
-        
+
         // Check if auction is closed ("Won For" or "Ended")
         var endedMatch = Regex.Match(html, @"<strong class="""">(Ended|Won For)<\/strong>");
         if (endedMatch.Success)
@@ -253,7 +243,7 @@ public class NellisScanner : INellisScanner
         {
             // Active auction
             result.State = AuctionState.Active;
-            
+
             // Look for current price
             var priceMatch = Regex.Match(html, @"<strong class="""">CURRENT PRICE<\/strong>[^<]*<\/p>[^<]*<p[^>]+>(\$[0-9,]+)<\/p>");
             if (priceMatch.Success && priceMatch.Groups.Count > 1)
@@ -265,21 +255,21 @@ public class NellisScanner : INellisScanner
                 }
             }
         }
-        
+
         // Extract inventory number if present
         var inventoryMatch = Regex.Match(html, @"<p class=""text-left font-medium"">Inventory Number<\/p>\s*<p>([0-9]+)<\/p>");
         if (inventoryMatch.Success && inventoryMatch.Groups.Count > 1)
         {
-            if(long.TryParse(inventoryMatch.Groups[1].Value, out long inventoryNumber))
+            if (long.TryParse(inventoryMatch.Groups[1].Value, out long inventoryNumber))
             {
                 result.InventoryNumber = inventoryNumber;
             }
             result.InventoryNumber = -1;
         }
-        
+
         return result;
     }
-    
+
     /// <summary>
     /// Creates a stream to monitor live updates for a specific product
     /// </summary>
@@ -292,10 +282,10 @@ public class NellisScanner : INellisScanner
     {
         string url = $"https://sse.nellisauction.com/live-products?productId={productId}";
         _logger.LogInformation("Monitoring updates for product ID {ProductId}", productId);
-        
+
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Add("Accept", "text/event-stream");
-        
+
         HttpResponseMessage response;
         try
         {
@@ -307,12 +297,12 @@ public class NellisScanner : INellisScanner
             _logger.LogError(ex, "Error connecting to SSE stream for product ID {ProductId}", productId);
             yield break;
         }
-        
+
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var reader = new StreamReader(stream);
-        
+
         string? line;
-        
+
         while (!cancellationToken.IsCancellationRequested && (line = await reader.ReadLineAsync()) != null)
         {
             // Process SSE format
@@ -324,7 +314,7 @@ public class NellisScanner : INellisScanner
                     // Connection messages, ignore
                     continue;
                 }
-                
+
                 ProductUpdate? update = null;
                 try
                 {
@@ -335,7 +325,7 @@ public class NellisScanner : INellisScanner
                     _logger.LogError(ex, "Error deserializing product update: {Data}", data);
                     continue;
                 }
-                
+
                 if (update != null)
                 {
                     yield return update;
@@ -380,36 +370,36 @@ public class DateTimeOffsetConverter : JsonConverter<DateTimeOffset>
             // Custom format from Nellis: { "__type": "Date", "value": "2025-04-25T02:01:48.208Z" }
             string? type = null;
             string? value = null;
-            
+
             while (reader.Read())
             {
                 if (reader.TokenType == JsonTokenType.EndObject)
                     break;
-                
+
                 if (reader.TokenType == JsonTokenType.PropertyName)
                 {
                     string propertyName = reader.GetString()!;
                     reader.Read();
-                    
+
                     if (propertyName == "__type")
                         type = reader.GetString();
                     else if (propertyName == "value")
                         value = reader.GetString();
                 }
             }
-            
+
             if (type == "Date" && value != null)
             {
                 return DateTimeOffset.Parse(value);
             }
-            
+
             return DateTimeOffset.MinValue;
         }
         else if (reader.TokenType == JsonTokenType.String)
         {
             return DateTimeOffset.Parse(reader.GetString()!);
         }
-        
+
         return DateTimeOffset.MinValue;
     }
 
