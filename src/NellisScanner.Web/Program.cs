@@ -1,3 +1,4 @@
+using ApexCharts;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
@@ -53,6 +54,15 @@ try
     // Register Scanner Service
     builder.Services.AddScoped<AuctionScannerService>();
 
+    //https://github.com/apexcharts/Blazor-ApexCharts
+    builder.Services.AddApexCharts(e =>
+            {
+                e.GlobalOptions = new ApexChartBaseOptions
+                {
+                    // Debug = true,
+                    // Theme = new Theme { Palette = PaletteType.Palette6 }
+                };
+            });
     var app = builder.Build();
 
     // Configure the HTTP request pipeline.
