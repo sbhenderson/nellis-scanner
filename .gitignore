@@ -398,3 +398,4 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+src/NellisScanner.Web/wwwroot/dist.css

@@ -1,4 +1,4 @@
-@page "/auctions"
+﻿@page "/auctions"
 @using Microsoft.EntityFrameworkCore
 @using NellisScanner.Core
 @using NellisScanner.Core.Models
@@ -16,7 +16,7 @@
             <div>
                 <div class="flex">
                     <input type="text" @bind="SearchTerm" @bind:event="oninput" 
-                           class="flex-1 rounded-l border-gray-300 shadow-sm px-4 py-2 focus:ring-blue-500 focus:border-blue-500" 
+                           class="flex-1 rounded-l border-gray-300 shadow-xs px-4 py-2 focus:ring-blue-500 focus:border-blue-500" 
                            placeholder="Search by title..." />
                     <button @onclick="ApplyFilters" 
                             class="bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition-colors">
@@ -29,7 +29,7 @@
                 </div>
             </div>
             <div>
-                <select @bind="SortBy" class="w-full rounded border-gray-300 shadow-sm px-4 py-2 focus:ring-blue-500 focus:border-blue-500">
+                <select @bind="SortBy" class="w-full rounded border-gray-300 shadow-xs px-4 py-2 focus:ring-blue-500 focus:border-blue-500">
                     <option value="retail_desc">Retail Price (High to Low)</option>
                     <option value="retail_asc">Retail Price (Low to High)</option>
                     <option value="current_desc">Current Price (High to Low)</option>

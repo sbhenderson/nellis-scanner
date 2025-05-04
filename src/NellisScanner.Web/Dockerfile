@@ -1,5 +1,11 @@
 # Use the official .NET SDK as a build image
 FROM mcr.microsoft.com/dotnet/sdk:9.0-noble AS build
+RUN apt update && apt install -y curl gnupg2 apt-transport-https ca-certificates lsb-release \
+    && curl -sL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt install -y nodejs \
+    && apt clean \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy csproj files and restore dependencies
@@ -13,7 +19,7 @@ COPY ["src/NellisScanner.Core/", "src/NellisScanner.Core/"]
 
 # Build the application
 WORKDIR "/app/src/NellisScanner.Web"
-RUN dotnet build -c Release -o /app/build
+RUN npm install && dotnet build -c Release -o /app/build
 
 # Publish the application
 FROM build AS publish

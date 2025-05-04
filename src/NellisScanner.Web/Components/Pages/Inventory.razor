@@ -1,4 +1,4 @@
-@page "/inventory"
+﻿@page "/inventory"
 @using Microsoft.EntityFrameworkCore
 @using NellisScanner.Core
 @using NellisScanner.Web.Data
@@ -16,7 +16,7 @@
             <div>
                 <div class="flex">
                     <input type="text" @bind="SearchTerm" @bind:event="oninput" 
-                           class="flex-1 rounded-l border-gray-300 shadow-sm px-4 py-2 focus:ring-blue-500 focus:border-blue-500" 
+                           class="flex-1 rounded-l border-gray-300 shadow-xs px-4 py-2 focus:ring-blue-500 focus:border-blue-500" 
                            placeholder="Search by inventory number or description..." />
                     <button @onclick="ApplyFilters" 
                             class="bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition-colors">
@@ -29,7 +29,7 @@
                 </div>
             </div>
             <div>
-                <select @bind="SortBy" class="w-full rounded border-gray-300 shadow-sm px-4 py-2 focus:ring-blue-500 focus:border-blue-500">
+                <select @bind="SortBy" class="w-full rounded border-gray-300 shadow-xs px-4 py-2 focus:ring-blue-500 focus:border-blue-500">
                     <option value="inventory_asc">Inventory Number (A-Z)</option>
                     <option value="inventory_desc">Inventory Number (Z-A)</option>
                     <option value="first_seen_desc">First Seen (Newest)</option>
@@ -128,7 +128,7 @@
 
     @if (SelectedItem != null)
     {
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div class="bg-white p-6 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-2xl font-bold">Inventory Item: @SelectedItem.InventoryNumber</h2>
