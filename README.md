@@ -108,6 +108,7 @@ This solution consists of two main components:
 ## References
 
 1. This [repository](https://github.com/Brudderbot/nellisAuction) revealed the hidden query parameter that returns data in JSON instead of HTML: `&_data=routes%2Fsearch` as well as the importance of the cookie for location.
+2. Tailwind CSS v4 was more of a pain to get installed correctly. Used [this](https://steven-giesel.com/blogPost/364c43d2-b31e-4377-8001-ac75ce78cdc6) and [this](https://www.billtalkstoomuch.com/2025/02/12/installing-tailwind-css-v4-in-a-blazor-webapp/) as guidance. Saw some interesting discussion in this [thread](https://github.com/tailwindlabs/tailwindcss/discussions/15679).
 
 ## Notice
 
