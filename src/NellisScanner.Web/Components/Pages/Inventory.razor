@@ -1,6 +1,7 @@
 ﻿@page "/inventory"
 @using Microsoft.EntityFrameworkCore
 @using NellisScanner.Core
+@using NellisScanner.Core.Models
 @using NellisScanner.Web.Data
 @using System.Globalization
 @using ApexCharts
@@ -29,7 +30,7 @@
                 </div>
             </div>
             <div>
-                <select @bind="SortBy" class="w-full rounded border-gray-300 shadow-xs px-4 py-2 focus:ring-blue-500 focus:border-blue-500">
+                <select @bind="SortBy" @bind:after="ApplyFilters" class="w-full rounded border-gray-300 shadow-xs px-4 py-2 focus:ring-blue-500 focus:border-blue-500">
                     <option value="inventory_asc">Inventory Number (A-Z)</option>
                     <option value="inventory_desc">Inventory Number (Z-A)</option>
                     <option value="first_seen_desc">First Seen (Newest)</option>
@@ -112,13 +113,13 @@
         </div>
         
         <div class="flex justify-between items-center mt-8">
-            <button class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" 
+            <button class="px-4 py-2 border border-gray-300 rounded text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" 
                     disabled="@(CurrentPage <= 0)" 
                     @onclick="PreviousPage">
                 Previous
             </button>
             <span class="text-gray-700">Page @(CurrentPage + 1) of @TotalPages</span>
-            <button class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" 
+            <button class="px-4 py-2 border border-gray-300 rounded text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" 
                     disabled="@(CurrentPage >= TotalPages - 1)" 
                     @onclick="NextPage">
                 Next
@@ -208,7 +209,9 @@
                                     var percentOfRetail = auction.RetailPrice > 0 ? Math.Round((priceToShow / auction.RetailPrice) * 100, 1) : 0;
 
                                     <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">@auction.Id</td>
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                                             <a href="@UrlHelpers.GenerateProductUrl(auction.Id, auction.Title)" target="_blank" class="text-blue-600 hover:underline">@auction.Id</a>
+                                        </td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">@auction.Title</td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm">
                                             <span class="px-2 py-1 rounded text-xs font-semibold 
