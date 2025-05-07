@@ -7,6 +7,8 @@ A .NET 9 application for tracking auctions on Nellis Auctions. The goal is to de
 3. Store data in a PostgreSQL instance
 4. Analyze the data and draw some conclusions
 
+I am currently hosting it off [my homelab here](https://nellis-scanner.external.henderson.engineering/), but this is obviously subject to availability and whether this persists or not.
+
 ## Foreword
 
 This repository is 99% agentic AI using GitHub Copilot with Claude Sonnet 3.7. This is merely a test project.
