@@ -33,6 +33,10 @@ public class AuctionScannerService
         var sw = Stopwatch.StartNew();
         foreach (var category in Enum.GetValues<Category>())
         {
+            if(category == Category.All)
+            {
+                continue; // Skip the "All" category
+            }
             await ScanCategoryAsync(category, cancellationToken);
         }
         _logger.LogInformation("Completed scan of all auction categories in {Elapsed}", sw.Elapsed);
