@@ -23,7 +23,7 @@ RUN npm install && dotnet build -c Release -o /app/build
 
 # Publish the application
 FROM build AS publish
-RUN dotnet publish -c Release -o /app/publish
+RUN dotnet publish --no-restore -c Release -o /app/publish
 
 # Use the Ubuntu Chiseled ASP.NET runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:9.0-noble-chiseled-extra AS final
