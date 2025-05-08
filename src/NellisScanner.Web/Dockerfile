@@ -11,7 +11,9 @@ WORKDIR /app
 # Copy csproj files and restore dependencies
 COPY ["src/NellisScanner.Web/NellisScanner.Web.csproj", "src/NellisScanner.Web/"]
 COPY ["src/NellisScanner.Core/NellisScanner.Core.csproj", "src/NellisScanner.Core/"]
+COPY ["src/NellisScanner.Web/package*", "src/NellisScanner.Web/"]
 RUN dotnet restore "src/NellisScanner.Web/NellisScanner.Web.csproj"
+RUN cd src/NellisScanner.Web && npm install
 
 # Copy the rest of the source code
 COPY ["src/NellisScanner.Web/", "src/NellisScanner.Web/"]
@@ -19,7 +21,7 @@ COPY ["src/NellisScanner.Core/", "src/NellisScanner.Core/"]
 
 # Build the application
 WORKDIR "/app/src/NellisScanner.Web"
-RUN npm install && dotnet build -c Release -o /app/build
+RUN dotnet build -c Release -o /app/build
 
 # Publish the application
 FROM build AS publish

@@ -251,9 +251,7 @@
                                         </td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">@auction.Title</td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm">
-                                            <span
-                                                class="px-2 py-1 rounded text-xs font-semibold 
-                                                            @(auction.State == AuctionState.Active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800")">
+                                            <span class="px-2 py-1 rounded text-xs font-semibold @(auction.State == AuctionState.Active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800")">
                                                 @auction.State
                                             </span>
                                         </td>
@@ -263,19 +261,15 @@
                                             @auction.CloseTime.ToLocalTime().ToString("g")</td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
                                             @auction.RetailPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
-                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">@priceToShow.ToString("C",
-                                                                            CultureInfo.GetCultureInfo("en-US"))</td>
-                                                                                                             <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">@auction.BidCount</td>
-                                                                                                             <td class="px-4 py-2 whitespace-nowrap text-sm">
-                                                                                                                 <span class="px-2 py-1 rounded text-xs font-semibold 
-                                                            @(percentOfRetail < 50 ? "bg-green-100 text-green-800" :
-                                                                                                  percentOfRetail < 80 ? "bg-yellow-100 text-yellow-800" : 
-                                                                                                  "bg-red-100 text-red-800")">
-                                    @percentOfRetail%
-                                </span>
-                            </td>
-                        </tr>
-                                                }
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">@priceToShow.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">@auction.BidCount</td>
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm">
+                                            <span class="px-2 py-1 rounded text-xs font-semibold @(percentOfRetail < 50 ? "bg-green-100 text-green-800" : percentOfRetail < 80 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800")">
+                                               @percentOfRetail%
+                                           </span>
+                                        </td>
+                                    </tr>
+                                }
                             </tbody>
                         </table>
                     </div>
@@ -425,14 +419,14 @@ ForceNiceScale = true
             //https://learn.microsoft.com/en-us/ef/core/querying/pagination
             query = SortBy switch
             {
-                "inventory_asc" => query.OrderBy(item => item.InventoryNumber).ThenBy(i => i.InventoryNumber),
-                "inventory_desc" => query.OrderBy(item => item.InventoryNumber).ThenByDescending(i => i.InventoryNumber),
-                "first_seen_desc" => query.OrderBy(item => item.InventoryNumber).ThenByDescending(i => i.FirstSeen),
-                "first_seen_asc" => query.OrderBy(item => item.InventoryNumber).ThenBy(i => i.FirstSeen),
-                "last_seen_desc" => query.OrderBy(item => item.InventoryNumber).ThenByDescending(i => i.LastSeen),
-                "last_seen_asc" => query.OrderBy(item => item.InventoryNumber).ThenBy(i => i.LastSeen),
-                "auctions_desc" => query.OrderBy(item => item.InventoryNumber).ThenByDescending(i => i.Auctions.Count),
-                _ => query.OrderBy(item => item.InventoryNumber).ThenByDescending(i => i.LastSeen)
+                "inventory_asc" => query.OrderBy(i => i.InventoryNumber),
+                "inventory_desc" => query.OrderByDescending(i => i.InventoryNumber),
+                "first_seen_desc" => query.OrderByDescending(i => i.FirstSeen).ThenBy(item => item.InventoryNumber),
+                "first_seen_asc" => query.OrderBy(i => i.FirstSeen).ThenBy(item => item.InventoryNumber),
+                "last_seen_desc" => query.OrderByDescending(i => i.LastSeen).ThenBy(item => item.InventoryNumber),
+                "last_seen_asc" => query.OrderBy(i => i.LastSeen).ThenBy(item => item.InventoryNumber),
+                "auctions_desc" => query.OrderByDescending(i => i.Auctions.Count).ThenBy(item => item.InventoryNumber),
+                _ => query.OrderByDescending(i => i.LastSeen).ThenBy(item => item.InventoryNumber)
             };
 
             // Get total count for pagination

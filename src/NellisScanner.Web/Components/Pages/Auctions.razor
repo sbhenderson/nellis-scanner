@@ -86,8 +86,7 @@
                         <div class="space-y-2">
                             <div class="flex justify-between border-t border-gray-100 pt-2">
                                 <span class="text-sm text-gray-500">Retail Price:</span>
-                                <span class="font-medium">@auction.RetailPrice.ToString("C",
-                                                                CultureInfo.GetCultureInfo("en-US"))</span>
+                                <span class="font-medium">@auction.RetailPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</span>
                     </div>
                     <div class="flex justify-between border-t border-gray-100 pt-2">
                         <span class="text-sm text-gray-500">Current Price:</span>
@@ -166,13 +165,13 @@
             // Apply sorting
             query = SortBy switch
             {
-                "retail_desc" => query.OrderBy(a => a.Id).ThenByDescending(a => a.RetailPrice),
-                "retail_asc" => query.OrderBy(a => a.Id).ThenBy(a => a.RetailPrice),
-                "current_desc" => query.OrderBy(a => a.Id).ThenByDescending(a => a.CurrentPrice),
-                "current_asc" => query.OrderBy(a => a.Id).ThenBy(a => a.CurrentPrice),
-                "closing_soon" => query.OrderBy(a => a.Id).ThenBy(a => a.CloseTime),
-                "bid_count" => query.OrderBy(a => a.Id).ThenByDescending(a => a.BidCount),
-                _ => query.OrderBy(a => a.Id).ThenByDescending(a => a.RetailPrice)
+                "retail_desc" => query.OrderByDescending(a => a.RetailPrice).ThenBy(a => a.Id),
+                "retail_asc" => query.OrderBy(a => a.RetailPrice).ThenBy(a => a.Id),
+                "current_desc" => query.OrderByDescending(a => a.CurrentPrice).ThenBy(a => a.Id),
+                "current_asc" => query.OrderBy(a => a.CurrentPrice).ThenBy(a => a.Id),
+                "closing_soon" => query.OrderBy(a => a.CloseTime).ThenBy(a => a.Id),
+                "bid_count" => query.OrderByDescending(a => a.BidCount).ThenBy(a => a.Id),
+                _ => query.OrderByDescending(a => a.RetailPrice).ThenBy(a => a.Id)
             };
 
             // Get total count for pagination
