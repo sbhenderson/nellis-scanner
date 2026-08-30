@@ -191,7 +191,9 @@ public class AuctionScannerService
                     State = product.IsClosed ? AuctionState.Closed : AuctionState.Active,
                     OpenTime = product.OpenTime,
                     CloseTime = product.CloseTime,
-                    LastUpdated = now
+                    LastUpdated = now,
+                    CategoryId = (int)category,
+                    CategoryName = GetCategoryDisplayName(category)
                 };
 
                 // Set location if available
@@ -337,6 +339,18 @@ public class AuctionScannerService
             cancellationToken);
 
         _logger.LogInformation("Completed bulk insert/update of {Count} inventory items", inventoryItemsToUpsert.Count);
+    }
+
+    /// <summary>
+    /// Gets the display name for a category from its Description attribute
+    /// </summary>
+    private static string GetCategoryDisplayName(Category category)
+    {
+        var field = typeof(Category).GetField(category.ToString());
+        var attr = field?.GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false)
+            .Cast<System.ComponentModel.DescriptionAttribute>()
+            .FirstOrDefault();
+        return attr?.Description ?? category.ToString();
     }
 
     /// <summary>

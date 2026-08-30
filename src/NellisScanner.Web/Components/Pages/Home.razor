@@ -5,6 +5,7 @@
 @using NellisScanner.Web.Data
 @using System.Globalization
 @inject NellisScannerDbContext DbContext
+@inject ILogger<Home> Logger
 
 <PageTitle>Nellis Scanner - Home</PageTitle>
 
@@ -22,7 +23,7 @@
     }
     else
     {
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-6 mb-8">
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                 <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-500">Active Auctions</span>
@@ -44,7 +45,7 @@
                     </span>
                 </div>
                 <h2 class="text-3xl font-bold text-gray-900 mt-3">@ClosingSoonCount</h2>
-                <p class="mt-1 text-xs text-gray-500">Ending within 30 minutes</p>
+                <p class="mt-1 text-xs text-gray-500">Ending within 24 hours</p>
             </div>
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                 <div class="flex items-center justify-between">
@@ -60,7 +61,7 @@
             </div>
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                 <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-gray-500">Current Bids</span>
+                    <span class="text-sm font-medium text-gray-500">Current Bids Value</span>
                     <span class="flex items-center justify-center w-9 h-9 rounded-lg bg-amber-50 text-amber-600">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12" />
@@ -68,7 +69,19 @@
                     </span>
                 </div>
                 <h2 class="text-2xl font-bold text-gray-900 mt-3">@TotalCurrentBids.ToString("C0", CultureInfo.GetCultureInfo("en-US"))</h2>
-                <p class="mt-1 text-xs text-gray-500">Current price</p>
+                <p class="mt-1 text-xs text-gray-500">Sum of current prices</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-gray-500">Avg. Discount vs Retail</span>
+                    <span class="flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                    </span>
+                </div>
+                <h2 class="text-2xl font-bold text-emerald-600 mt-3">@AverageDiscountPercent.ToString("0.0")%</h2>
+                <p class="mt-1 text-xs text-gray-500">Across @ActiveAuctionsCount active listings</p>
             </div>
         </div>
 
@@ -87,6 +100,7 @@
                                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Retail Price</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Price</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discount</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100">
@@ -100,6 +114,9 @@
                                             </td>
                                             <td class="px-4 py-3 text-gray-500 line-through">@auction.RetailPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
                                             <td class="px-4 py-3 font-semibold text-gray-900">@auction.CurrentPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
+                                            <td class="px-4 py-3">
+                                                <span class="px-2 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">-@auction.DiscountPercent.ToString("0.0")%</span>
+                                            </td>
                                         </tr>
                                     }
                                 </tbody>
@@ -113,8 +130,9 @@
                 </div>
             </div>
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 h-full">
-                <div class="border-b border-gray-100 px-6 py-4">
+                <div class="border-b border-gray-100 px-6 py-4 flex items-center justify-between">
                     <h5 class="font-semibold text-gray-800">Closing Soon</h5>
+                    <a href="auctions" class="text-xs font-medium text-primary-600 hover:text-primary-700 hover:underline">View all</a>
                 </div>
                 <div class="p-6">
                     @if (ClosingSoonAuctions.Any())
@@ -165,6 +183,7 @@
                 <p class="text-sm text-gray-500">Data last refreshed: <span class="font-medium text-gray-700">@(LastUpdated?.ToLocalTime().ToString("g") ?? "Never")</span></p>
                 <div class="flex flex-wrap gap-2">
                     <a href="auctions" class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors">View All Auctions</a>
+                    <a href="insights" class="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors">View Insights</a>
                     <a href="/hangfire" target="_blank" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">View Background Jobs</a>
                 </div>
             </div>
@@ -178,9 +197,13 @@
     private int ClosingSoonCount { get; set; }
     private decimal TotalRetailValue { get; set; }
     private decimal TotalCurrentBids { get; set; }
+    private decimal AverageDiscountPercent { get; set; }
     private List<AuctionItem> TopValueAuctions { get; set; } = new();
     private List<AuctionItem> ClosingSoonAuctions { get; set; } = new();
     private DateTimeOffset? LastUpdated { get; set; }
+
+    // Consistent "closing soon" window used by both the stat card and the table.
+    private static readonly TimeSpan ClosingSoonWindow = TimeSpan.FromHours(24);
 
     protected override async Task OnInitializedAsync()
     {
@@ -196,18 +219,18 @@
                 .Where(p => p.State == AuctionState.Active)
                 .CountAsync();
 
-            // Get auctions closing within 30 minutes
-            var thirtyMinutesFromNow = DateTimeOffset.UtcNow.AddMinutes(30);
+            // Get auctions closing within the closing-soon window
+            var closingSoonCutoff = DateTimeOffset.UtcNow.Add(ClosingSoonWindow);
             ClosingSoonCount = await DbContext.Auctions
-                .Where(p => p.State == AuctionState.Active && 
-                          p.CloseTime <= thirtyMinutesFromNow)
+                .Where(p => p.State == AuctionState.Active &&
+                          p.CloseTime <= closingSoonCutoff)
                 .CountAsync();
 
             // Get total retail value and current bids
             var totals = await DbContext.Auctions
                 .Where(p => p.State == AuctionState.Active)
                 .GroupBy(p => 1)
-                .Select(g => new { 
+                .Select(g => new {
                     RetailValue = g.Sum(p => p.RetailPrice),
                     CurrentBids = g.Sum(p => p.CurrentPrice)
                 })
@@ -216,6 +239,17 @@
             TotalRetailValue = totals?.RetailValue ?? 0;
             TotalCurrentBids = totals?.CurrentBids ?? 0;
 
+            // Real average discount vs retail. Computed client-side from the active rows so it
+            // works on any EF provider (the InMemory provider can't translate an Average over a
+            // computed decimal projection).
+            var activePrices = await DbContext.Auctions.AsNoTracking()
+                .Where(p => p.State == AuctionState.Active && p.RetailPrice > 0)
+                .Select(p => new { p.RetailPrice, p.CurrentPrice })
+                .ToListAsync();
+            AverageDiscountPercent = activePrices.Count == 0
+                ? 0m
+                : activePrices.Average(p => (1m - p.CurrentPrice / p.RetailPrice) * 100m);
+
             // Get top 5 auctions by retail price
             TopValueAuctions = await DbContext.Auctions
                 .Where(p => p.State == AuctionState.Active)
@@ -223,9 +257,9 @@
                 .Take(5)
                 .ToListAsync();
 
-            // Get top 5 auctions closing soon
+            // Get auctions closing soonest (within the closing-soon window)
             ClosingSoonAuctions = await DbContext.Auctions
-                .Where(p => p.State == AuctionState.Active)
+                .Where(p => p.State == AuctionState.Active && p.CloseTime <= closingSoonCutoff)
                 .OrderBy(p => p.CloseTime)
                 .Take(5)
                 .ToListAsync();
@@ -238,8 +272,7 @@
         }
         catch (Exception ex)
         {
-            // Handle any errors (in a real app you would log this)
-            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
+            Logger.LogError(ex, "Error loading dashboard data");
         }
         finally
         {

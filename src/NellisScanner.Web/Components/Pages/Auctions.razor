@@ -5,6 +5,7 @@
 @using NellisScanner.Web.Data
 @using System.Globalization
 @inject NellisScannerDbContext DbContext
+@inject ILogger<Auctions> Logger
 
 <PageTitle>Nellis Scanner - Auctions</PageTitle>
 
@@ -12,12 +13,12 @@
     <h1 class="text-3xl font-bold text-gray-800 mb-6">Auctions</h1>
 
     <div class="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
                 <div class="flex mb-2">
                     <input type="text" @bind="SearchTerm" @bind:event="oninput" @onkeyup="HandleKeyUp"
                         class="flex-1 h-10 rounded-l-lg border border-gray-300 px-4 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                        placeholder="Search by title..." />
+                        placeholder="Search title, auction ID, or inventory #..." />
                     <button @onclick="ApplyFilters"
                         class="h-10 bg-primary-600 text-white px-4 font-medium hover:bg-primary-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500">
                         Search
@@ -35,12 +36,23 @@
                 </div>
             </div>
             <div>
+                <select @bind="SelectedCategoryId" @bind:event="oninput" @onchange="ApplyFilters"
+                    class="w-full h-10 rounded-lg border border-gray-300 px-4 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    <option value="">All Categories</option>
+                    @foreach (var cat in Categories)
+                    {
+                        <option value="@((int)cat.Key)">@cat.Value</option>
+                    }
+                </select>
+            </div>
+            <div>
                 <select @bind="SortBy" @bind:event="oninput" @onchange="ApplyFilters"
                     class="w-full h-10 rounded-lg border border-gray-300 px-4 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
                     <option value="retail_desc">Retail Price (High to Low)</option>
                     <option value="retail_asc">Retail Price (Low to High)</option>
                     <option value="current_desc">Current Price (High to Low)</option>
                     <option value="current_asc">Current Price (Low to High)</option>
+                    <option value="discount_desc">Biggest Discount</option>
                     <option value="closing_soon">Closing Soon</option>
                     <option value="bid_count">Most Bids</option>
                 </select>
@@ -63,7 +75,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach (var auction in AuctionItems)
             {
-                var discountPercent = GetDiscountPercent(auction.RetailPrice, auction.CurrentPrice);
+                var discountPercent = auction.DiscountPercent;
 
                 <div class="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden border border-gray-100">
                     <div class="flex justify-between items-center px-4 py-2 bg-gray-50 border-b border-gray-100">
@@ -71,6 +83,12 @@
                             class="px-2 py-1 rounded-full text-xs font-semibold @(auction.State == AuctionState.Active ? "bg-emerald-100 text-emerald-700" : "bg-gray-200 text-gray-600")">
                             @auction.State
                         </span>
+                        @if (!string.IsNullOrEmpty(auction.CategoryName))
+                        {
+                            <span class="px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                                @auction.CategoryName
+                            </span>
+                        }
                         <span class="px-2 py-1 rounded-full text-xs font-semibold bg-primary-50 text-primary-700">
                             ID: @auction.Id
                         </span>
@@ -140,9 +158,34 @@
     private string SearchTerm { get; set; } = "";
     private string SortBy { get; set; } = "retail_desc";
     private bool HideClosedAuctions { get; set; } = true;
+    private string SelectedCategoryId { get; set; } = "";
+
+    // Allow deep-linking to a pre-filtered view, e.g. /auctions?category=1&search=laptop
+    [SupplyParameterFromQuery(Name = "category")]
+    public string? CategoryParam { get; set; }
+
+    [SupplyParameterFromQuery(Name = "search")]
+    public string? SearchParam { get; set; }
+
+    // Category lookup for the filter dropdown (id -> display name)
+    private static readonly Dictionary<Category, string> Categories = new()
+    {
+        { Category.Electronics, "Electronics" },
+        { Category.HomeAndHousehold, "Home & Household" },
+        { Category.HomeImprovement, "Home Improvement" },
+        { Category.SmartHome, "Smart Home" },
+        { Category.OfficeAndSchool, "Office & School" },
+        { Category.Automotive, "Automotive" },
+    };
 
     protected override async Task OnInitializedAsync()
     {
+        // Apply deep-link query parameters (e.g. from the Insights page)
+        if (!string.IsNullOrEmpty(CategoryParam))
+            SelectedCategoryId = CategoryParam;
+        if (!string.IsNullOrEmpty(SearchParam))
+            SearchTerm = SearchParam;
+
         await LoadAuctionsAsync();
     }
 
@@ -154,10 +197,28 @@
             // Create a query for auctions
             IQueryable<AuctionItem> query = DbContext.Auctions.AsNoTracking();
 
-            // Apply search filter if provided
+            // Apply search filter if provided: title, auction ID, or inventory number
             if (!string.IsNullOrWhiteSpace(SearchTerm))
             {
-                query = query.Where(a => a.Title != null && EF.Functions.ILike(a.Title, $"%{SearchTerm}%"));
+                var term = SearchTerm.Trim();
+                if (int.TryParse(term, out var auctionId))
+                {
+                    query = query.Where(a => a.Id == auctionId || a.InventoryNumber == auctionId);
+                }
+                else if (long.TryParse(term, out var inventoryNumber))
+                {
+                    query = query.Where(a => a.InventoryNumber == inventoryNumber);
+                }
+                else
+                {
+                    query = query.Where(a => a.Title != null && EF.Functions.ILike(a.Title, $"%{term}%"));
+                }
+            }
+
+            // Apply category filter if selected
+            if (!string.IsNullOrEmpty(SelectedCategoryId) && int.TryParse(SelectedCategoryId, out var categoryId))
+            {
+                query = query.Where(a => a.CategoryId == categoryId);
             }
 
             // Apply filter to hide closed auctions
@@ -173,6 +234,10 @@
                 "retail_asc" => query.OrderBy(a => a.RetailPrice).ThenBy(a => a.Id),
                 "current_desc" => query.OrderByDescending(a => a.CurrentPrice).ThenBy(a => a.Id),
                 "current_asc" => query.OrderBy(a => a.CurrentPrice).ThenBy(a => a.Id),
+                "discount_desc" => query
+                    .Where(a => a.RetailPrice > 0)
+                    .OrderByDescending(a => 1m - a.CurrentPrice / a.RetailPrice)
+                    .ThenBy(a => a.Id),
                 "closing_soon" => query.OrderBy(a => a.CloseTime).ThenBy(a => a.Id),
                 "bid_count" => query.OrderByDescending(a => a.BidCount).ThenBy(a => a.Id),
                 _ => query.OrderByDescending(a => a.RetailPrice).ThenBy(a => a.Id)
@@ -190,8 +255,7 @@
         }
         catch (Exception ex)
         {
-            // In a real app, you would log the exception
-            Console.WriteLine($"Error loading auctions: {ex.Message}");
+            Logger.LogError(ex, "Error loading auctions");
             AuctionItems = new List<AuctionItem>();
         }
         finally
@@ -210,6 +274,7 @@
     {
         SearchTerm = "";
         SortBy = "retail_desc";
+        SelectedCategoryId = "";
         HideClosedAuctions = false;
         CurrentPage = 0;
         await LoadAuctionsAsync();
@@ -239,15 +304,5 @@
         {
             await ApplyFilters();
         }
-    }
-
-    // Presentational-only helper: percentage discount of current price vs retail, for the card badge.
-    private static int GetDiscountPercent(decimal retailPrice, decimal currentPrice)
-    {
-        if (retailPrice <= 0)
-            return 0;
-
-        var percent = (1 - (currentPrice / retailPrice)) * 100;
-        return (int)Math.Round(Math.Max(0, percent));
     }
 }

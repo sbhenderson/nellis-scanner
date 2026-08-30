@@ -1,0 +1,302 @@
+@page "/insights"
+@using Microsoft.EntityFrameworkCore
+@using NellisScanner.Core
+@using NellisScanner.Core.Models
+@using NellisScanner.Web.Data
+@using System.Globalization
+@inject NellisScannerDbContext DbContext
+@inject ILogger<Insights> Logger
+
+<PageTitle>Insights - Nellis Scanner</PageTitle>
+
+<div class="container mx-auto px-4">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Insights</h1>
+        <p class="text-gray-600 mt-1">Analysis of auction pricing, relisting behavior, and close outcomes.</p>
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="flex justify-center items-center my-12">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary-500"></div>
+        </div>
+    }
+    else
+    {
+        @* Category savings *@
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-8">
+            <div class="border-b border-gray-100 px-6 py-4">
+                <h5 class="font-semibold text-gray-800">Savings by Category</h5>
+                <p class="text-xs text-gray-500 mt-0.5">Average discount vs retail and realized final prices, per category.</p>
+            </div>
+            <div class="p-6">
+                @if (CategoryStats.Any())
+                {
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead>
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Active</th>
+                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Avg. Current Discount</th>
+                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Closed</th>
+                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Avg. Final vs Retail</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                @foreach (var c in CategoryStats)
+                                {
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-3 font-medium text-gray-800">
+                                            <a href="auctions?category=@c.CategoryId" class="text-primary-600 hover:text-primary-700 hover:underline">@c.CategoryName</a>
+                                        </td>
+                                        <td class="px-4 py-3 text-right text-gray-700">@c.ActiveCount</td>
+                                        <td class="px-4 py-3 text-right">
+                                            @if (c.AvgActiveDiscountPercent.HasValue)
+                                            {
+                                                <span class="px-2 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">-@c.AvgActiveDiscountPercent.Value.ToString("0.0")%</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-gray-400">—</span>
+                                            }
+                                        </td>
+                                        <td class="px-4 py-3 text-right text-gray-700">@c.ClosedCount</td>
+                                        <td class="px-4 py-3 text-right">
+                                            @if (c.AvgFinalDiscountPercent.HasValue)
+                                            {
+                                                <span class="px-2 py-1 rounded-full text-xs font-semibold @DiscountBadgeClass(c.AvgFinalDiscountPercent.Value)">-@c.AvgFinalDiscountPercent.Value.ToString("0.0")%</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-gray-400">—</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="bg-primary-50 text-primary-700 p-4 rounded-lg">No categorized auctions yet. Category data is populated on new scans.</div>
+                }
+            </div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-6 mb-8">
+            @* Relisted items *@
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 h-full">
+                <div class="border-b border-gray-100 px-6 py-4">
+                    <h5 class="font-semibold text-gray-800">Most Relisted Items</h5>
+                    <p class="text-xs text-gray-500 mt-0.5">Inventory that keeps coming back — a sign of returns, reserves, or unsold stock.</p>
+                </div>
+                <div class="p-6">
+                    @if (RelistedItems.Any())
+                    {
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead>
+                                    <tr>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Auctions</th>
+                                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Latest Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach (var item in RelistedItems)
+                                    {
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-3">
+                                                <a href="inventory?search=@item.InventoryNumber" class="text-primary-600 hover:text-primary-700 hover:underline" title="@item.Description">
+                                                    @TruncateString(item.Description, 40)
+                                                </a>
+                                                <span class="block text-xs text-gray-400">#@item.InventoryNumber</span>
+                                            </td>
+                                            <td class="px-4 py-3 text-right">
+                                                <span class="px-2 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700">@item.AuctionCount</span>
+                                            </td>
+                                            <td class="px-4 py-3 text-right font-semibold text-gray-900">
+                                                @(item.LatestPrice?.ToString("C", CultureInfo.GetCultureInfo("en-US")) ?? "—")
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="bg-primary-50 text-primary-700 p-4 rounded-lg">No relisted items detected yet.</div>
+                    }
+                </div>
+            </div>
+
+            @* Zero-bid closes *@
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 h-full">
+                <div class="border-b border-gray-100 px-6 py-4">
+                    <h5 class="font-semibold text-gray-800">Closed Without Bids</h5>
+                    <p class="text-xs text-gray-500 mt-0.5">Auctions that ended with zero bids — possible overpricing or hidden reserves.</p>
+                </div>
+                <div class="p-6">
+                    @if (ZeroBidAuctions.Any())
+                    {
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead>
+                                    <tr>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Retail</th>
+                                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Closed</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach (var a in ZeroBidAuctions)
+                                    {
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-3">
+                                                <a href="@UrlHelpers.GenerateProductUrl(a.Id, a.Title)" target="_blank" class="text-primary-600 hover:text-primary-700 hover:underline" title="@a.Title">
+                                                    @TruncateString(a.Title, 40)
+                                                </a>
+                                            </td>
+                                            <td class="px-4 py-3 text-right text-gray-500">@a.RetailPrice.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
+                                            <td class="px-4 py-3 text-right text-gray-500">@a.CloseTime.ToLocalTime().ToString("d")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="bg-primary-50 text-primary-700 p-4 rounded-lg">No zero-bid closes recorded yet.</div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool IsLoading { get; set; } = true;
+    private List<CategoryStat> CategoryStats { get; set; } = new();
+    private List<RelistedItem> RelistedItems { get; set; } = new();
+    private List<AuctionItem> ZeroBidAuctions { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInsightsAsync();
+    }
+
+    private async Task LoadInsightsAsync()
+    {
+        try
+        {
+            await Task.WhenAll(
+                LoadCategoryStatsAsync(),
+                LoadRelistedItemsAsync(),
+                LoadZeroBidAuctionsAsync());
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading insights");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task LoadCategoryStatsAsync()
+    {
+        // Pull per-auction prices and aggregate client-side: the EF InMemory provider cannot
+        // translate an Average over a computed decimal projection, and this keeps the page
+        // working identically across providers.
+        var rows = await DbContext.Auctions.AsNoTracking()
+            .Where(a => a.CategoryId != null && a.RetailPrice > 0)
+            .Select(a => new { a.CategoryId, a.CategoryName, a.State, a.RetailPrice, a.CurrentPrice, a.FinalPrice })
+            .ToListAsync();
+
+        CategoryStats = rows
+            .GroupBy(a => new { a.CategoryId, a.CategoryName })
+            .Select(g =>
+            {
+                var activeRows = g.Where(a => a.State == AuctionState.Active).ToList();
+                var closedRows = g.Where(a => a.State == AuctionState.Closed).ToList();
+                return new CategoryStat
+                {
+                    CategoryId = g.Key.CategoryId,
+                    CategoryName = g.Key.CategoryName,
+                    ActiveCount = activeRows.Count,
+                    AvgActiveDiscountPercent = activeRows.Count == 0 ? (decimal?)null
+                        : activeRows.Average(a => (1m - a.CurrentPrice / a.RetailPrice) * 100m),
+                    ClosedCount = closedRows.Count,
+                    AvgFinalDiscountPercent = closedRows.Count == 0 ? (decimal?)null
+                        : closedRows.Average(a => (1m - a.FinalPrice / a.RetailPrice) * 100m),
+                };
+            })
+            .OrderByDescending(c => c.ActiveCount)
+            .ThenBy(c => c.CategoryName)
+            .ToList();
+    }
+
+    private async Task LoadRelistedItemsAsync()
+    {
+        RelistedItems = await DbContext.Inventory.AsNoTracking()
+            .Where(i => i.Auctions.Count > 1)
+            .OrderByDescending(i => i.Auctions.Count)
+            .ThenByDescending(i => i.LastSeen)
+            .Take(10)
+            .Select(i => new RelistedItem
+            {
+                InventoryNumber = i.InventoryNumber,
+                Description = i.Description,
+                AuctionCount = i.Auctions.Count,
+                LatestPrice = i.Auctions.OrderByDescending(a => a.CloseTime).Select(a => (decimal?)a.CurrentPrice).FirstOrDefault()
+            })
+            .ToListAsync();
+    }
+
+    private async Task LoadZeroBidAuctionsAsync()
+    {
+        ZeroBidAuctions = await DbContext.Auctions.AsNoTracking()
+            .Where(a => a.State == AuctionState.Closed && (a.BidCount == null || a.BidCount == 0))
+            .OrderByDescending(a => a.CloseTime)
+            .Take(10)
+            .ToListAsync();
+    }
+
+    private static string DiscountBadgeClass(decimal percent) => percent switch
+    {
+        >= 50 => "bg-emerald-50 text-emerald-700",
+        >= 20 => "bg-amber-50 text-amber-700",
+        _ => "bg-red-50 text-red-700",
+    };
+
+    private static string TruncateString(string? input, int maxLength)
+    {
+        if (string.IsNullOrEmpty(input) || input.Length <= maxLength)
+            return input ?? string.Empty;
+
+        return input.Substring(0, maxLength) + "...";
+    }
+
+    private class CategoryStat
+    {
+        public int? CategoryId { get; set; }
+        public string? CategoryName { get; set; }
+        public int ActiveCount { get; set; }
+        public decimal? AvgActiveDiscountPercent { get; set; }
+        public int ClosedCount { get; set; }
+        public decimal? AvgFinalDiscountPercent { get; set; }
+    }
+
+    private class RelistedItem
+    {
+        public long InventoryNumber { get; set; }
+        public string? Description { get; set; }
+        public int AuctionCount { get; set; }
+        public decimal? LatestPrice { get; set; }
+    }
+}

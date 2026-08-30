@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using NellisScanner.Core;
 using NellisScanner.Core.Models;
@@ -31,6 +32,8 @@ public class NellisScannerDbContext : DbContext
             // Create an index on inventory number
             entity.HasIndex(p => p.InventoryNumber);
             entity.HasIndex(p => p.CloseTime); // Add index on close time for efficient queries
+            entity.HasIndex(p => p.CategoryId); // Filter by category
+            entity.Property(p => p.CategoryName).HasMaxLength(100);
             
             // Relationship with Inventory
             entity.HasOne(a => a.Inventory)
@@ -68,7 +71,17 @@ public class AuctionItem
     public DateTimeOffset LastUpdated { get; set; }
     public string? Location { get; set; }
     public int? BidCount { get; set; } // Track bid count
-    
+
+    // Category this auction was discovered under (matches NellisScanner.Core.Models.Category)
+    public int? CategoryId { get; set; }
+    public string? CategoryName { get; set; }
+
+    // Discount vs retail price as a percentage (0-100). 0 when retail is 0 or current price exceeds retail.
+    [NotMapped]
+    public decimal DiscountPercent => RetailPrice > 0
+        ? Math.Max(0, Math.Round((1m - CurrentPrice / RetailPrice) * 100m, 1))
+        : 0m;
+
     // Navigation property
     public InventoryItem? Inventory { get; set; }
 }

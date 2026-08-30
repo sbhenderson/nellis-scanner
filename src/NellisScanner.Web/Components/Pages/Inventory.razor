@@ -299,6 +299,10 @@
     private string SearchTerm { get; set; } = "";
     private string SortBy { get; set; } = "last_seen_desc";
 
+    // Allow deep-linking to a pre-filtered view, e.g. /inventory?search=1828381
+    [SupplyParameterFromQuery(Name = "search")]
+    public string? SearchParam { get; set; }
+
     // For modal details
     private InventoryItem? SelectedItem { get; set; }
     private List<AuctionItem>? SelectedItemAuctions { get; set; }
@@ -318,6 +322,10 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Apply deep-link query parameter (e.g. from the Insights page)
+        if (!string.IsNullOrEmpty(SearchParam))
+            SearchTerm = SearchParam;
+
         // Configure the price history chart defaults
         ConfigurePriceHistoryChart();
 
@@ -408,12 +416,13 @@ ForceNiceScale = true
             IQueryable<InventoryItem> query = DbContext.Inventory.AsNoTracking()
             .Include(i => i.Auctions);
 
-            // Apply search filter if provided
+            // Apply search filter if provided (case-insensitive via ILike)
             if (!string.IsNullOrWhiteSpace(SearchTerm))
             {
+                var term = SearchTerm.Trim();
                 query = query.Where(i =>
-                i.InventoryNumber.ToString().Contains(SearchTerm) ||
-                (i.Description != null && i.Description.Contains(SearchTerm)));
+                    EF.Functions.ILike(i.InventoryNumber.ToString(), $"%{term}%") ||
+                    (i.Description != null && EF.Functions.ILike(i.Description, $"%{term}%")));
             }
             // Apply sorting
             //https://learn.microsoft.com/en-us/ef/core/querying/pagination

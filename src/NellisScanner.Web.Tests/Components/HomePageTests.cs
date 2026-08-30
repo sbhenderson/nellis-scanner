@@ -44,8 +44,8 @@ namespace NellisScanner.Web.Tests.Components
 
             // There should be 3 active auctions in the seeded data
             Assert.Contains(h2s, h => h.TextContent.Trim() == "3");
-            // There should be 1 auction closing soon
-            Assert.Contains(h2s, h => h.TextContent.Trim() == "1");
+            // Two auctions close within 24 hours (the "closing soon" window): the +1 day and +15 min items
+            Assert.Contains(h2s, h => h.TextContent.Trim() == "2");
         }
 
         [Fact]
@@ -79,8 +79,8 @@ namespace NellisScanner.Web.Tests.Components
 
             // Assert
             // Wait for the component to render
-            cut.WaitForElement("table");
-            
+            cut.WaitForElement("tbody td a");
+
             // Check for content related to high value items
             var pageContent = cut.Markup;
             Assert.Contains("High Value Item", pageContent);
@@ -98,14 +98,14 @@ namespace NellisScanner.Web.Tests.Components
 
             // Assert
             // Wait for the component to render fully
-            cut.WaitForElement("table");
-            
+            cut.WaitForElement("tbody td a");
+
             // Check that the page contains a reference to our closing soon item
             var pageContent = cut.Markup;
             Assert.Contains("Closing Soon Item", pageContent);
-            
-            // Look for time-related content (likely to appear near closing soon items)
-            Assert.Contains("minutes", pageContent.ToLower());
+
+            // Look for time-related content (the closing-soon badge shows a relative time like "15 min")
+            Assert.Matches(@"\d+\s*(min|h|d)", pageContent);
         }
 
         private void SeedDatabaseWithTestData(bool includeClosingSoon = true)
