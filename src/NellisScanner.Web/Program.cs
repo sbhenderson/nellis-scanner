@@ -14,7 +14,7 @@ Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
     .Enrich.FromLogContext()
     .WriteTo.Console()
-    .CreateBootstrapLogger(); // Bootstrap logger will be replaced later
+    .CreateLogger();
 
 try
 {
@@ -27,7 +27,9 @@ try
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
         .Enrich.FromLogContext()
-        .WriteTo.Console());
+        .WriteTo.Console(),
+        writeToProviders: false,
+        preserveStaticLogger: true);
 
     // Add services to the container.
     builder.Services.AddRazorComponents()

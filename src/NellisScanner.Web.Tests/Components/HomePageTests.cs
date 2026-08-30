@@ -12,7 +12,7 @@ using Xunit;
 
 namespace NellisScanner.Web.Tests.Components
 {
-    public class HomePageTests : TestContext
+    public class HomePageTests : BunitContext
     {
         private readonly NellisScannerDbContext _dbContext;
 
@@ -35,18 +35,17 @@ namespace NellisScanner.Web.Tests.Components
             SeedDatabaseWithTestData();
 
             // Act
-            var cut = RenderComponent<Home>();
+            var cut = Render<Home>();
 
             // Assert
             // Check for statistics in the component
-            cut.WaitForElement("div.bg-blue-600");
-            var activeAuctionsElement = cut.Find("div.bg-blue-600 h2");
-            var closingSoonElement = cut.Find("div.bg-green-600 h2");
+            cut.WaitForElement("h2");
+            var h2s = cut.FindAll("h2");
 
             // There should be 3 active auctions in the seeded data
-            Assert.Equal("3", activeAuctionsElement.TextContent);
+            Assert.Contains(h2s, h => h.TextContent.Trim() == "3");
             // There should be 1 auction closing soon
-            Assert.Equal("1", closingSoonElement.TextContent);
+            Assert.Contains(h2s, h => h.TextContent.Trim() == "1");
         }
 
         [Fact]
@@ -56,18 +55,17 @@ namespace NellisScanner.Web.Tests.Components
             SeedDatabaseWithTestData();
 
             // Act
-            var cut = RenderComponent<Home>();
+            var cut = Render<Home>();
 
             // Assert
             // Check for value statistics in the component
-            cut.WaitForElement("div.bg-cyan-600");
-            var retailValueElement = cut.Find("div.bg-cyan-600 h2");
-            var currentBidsElement = cut.Find("div.bg-yellow-500 h2");
+            cut.WaitForElement("h2");
+            var h2s = cut.FindAll("h2");
 
             // Total retail value should be $3,000
-            Assert.Contains("$3,000", retailValueElement.TextContent);
+            Assert.Contains(h2s, h => h.TextContent.Contains("$3,000"));
             // Total current bids should be $550
-            Assert.Contains("$550", currentBidsElement.TextContent);
+            Assert.Contains(h2s, h => h.TextContent.Contains("$550"));
         }
 
         [Fact]
@@ -77,7 +75,7 @@ namespace NellisScanner.Web.Tests.Components
             SeedDatabaseWithTestData();
 
             // Act
-            var cut = RenderComponent<Home>();
+            var cut = Render<Home>();
 
             // Assert
             // Wait for the component to render
@@ -96,7 +94,7 @@ namespace NellisScanner.Web.Tests.Components
             SeedDatabaseWithTestData(includeClosingSoon: true);
 
             // Act
-            var cut = RenderComponent<Home>();
+            var cut = Render<Home>();
 
             // Assert
             // Wait for the component to render fully

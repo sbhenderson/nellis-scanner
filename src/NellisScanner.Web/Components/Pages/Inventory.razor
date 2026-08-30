@@ -12,26 +12,26 @@
 <div class="container mx-auto px-4">
     <h1 class="text-3xl font-bold text-gray-800 mb-6">Inventory Items</h1>
 
-    <div class="mb-6">
+    <div class="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <div class="flex">
                     <input type="text" @bind="SearchTerm" @bind:event="oninput"
-                        class="flex-1 rounded-l border-gray-300 shadow-xs px-4 py-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="flex-1 h-10 rounded-l-lg border border-gray-300 px-4 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                         placeholder="Search by inventory number or description..." />
                     <button @onclick="ApplyFilters"
-                        class="bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition-colors">
+                        class="h-10 bg-primary-600 text-white px-4 font-medium hover:bg-primary-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500">
                         Search
                     </button>
                     <button @onclick="ClearFilters"
-                        class="bg-gray-600 text-white px-4 py-2 rounded-r hover:bg-gray-700 transition-colors">
+                        class="h-10 bg-gray-100 text-gray-700 px-4 rounded-r-lg font-medium border border-l-0 border-gray-300 hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500">
                         Clear
                     </button>
                 </div>
             </div>
             <div>
                 <select @bind="SortBy" @bind:after="ApplyFilters"
-                    class="w-full rounded border-gray-300 shadow-xs px-4 py-2 focus:ring-blue-500 focus:border-blue-500">
+                    class="w-full h-10 rounded-lg border border-gray-300 px-4 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
                     <option value="inventory_asc">Inventory Number (A-Z)</option>
                     <option value="inventory_desc">Inventory Number (Z-A)</option>
                     <option value="first_seen_desc">First Seen (Newest)</option>
@@ -47,19 +47,19 @@
     @if (IsLoading)
     {
         <div class="flex justify-center items-center my-12">
-            <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+            <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary-500"></div>
         </div>
     }
     else if (InventoryItems == null || !InventoryItems.Any())
     {
-        <div class="bg-blue-50 text-blue-700 p-4 rounded">No inventory items found.</div>
+        <div class="bg-primary-50 text-primary-700 p-4 rounded-lg">No inventory items found.</div>
     }
     else
     {
         <div class="grid grid-cols-1 gap-6">
-            <div class="bg-white shadow-md overflow-hidden rounded-md">
+            <div class="bg-white shadow-sm border border-gray-100 overflow-hidden rounded-xl">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
+                    <table class="min-w-full divide-y divide-gray-100">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th scope="col"
@@ -88,14 +88,14 @@
                                     Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
+                        <tbody class="bg-white divide-y divide-gray-100">
                             @foreach (var item in InventoryItems)
                             {
                                 var latestAuction = item.Auctions?.OrderByDescending(a => a.LastUpdated).FirstOrDefault();
                                 var auctionCount = item.Auctions?.Count ?? 0;
 
                                 <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">
                                         <button @onclick="() => ShowItemDetails(item)" class="hover:underline">
                                             @item.InventoryNumber
                                         </button>
@@ -120,7 +120,7 @@
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         <button @onclick="() => ShowItemDetails(item)"
-                                            class="text-indigo-600 hover:text-indigo-900">
+                                            class="text-primary-600 hover:text-primary-800">
                                             View History
                                         </button>
                                     </td>
@@ -134,13 +134,13 @@
 
         <div class="flex justify-between items-center mt-8">
             <button
-                class="px-4 py-2 border border-gray-300 rounded text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 disabled="@(CurrentPage <= 0)" @onclick="PreviousPage">
                 Previous
             </button>
-            <span class="text-gray-700">Page @(CurrentPage + 1) of @TotalPages</span>
+            <span class="text-gray-700 text-sm">Page @(CurrentPage + 1) of @TotalPages</span>
             <button
-                class="px-4 py-2 border border-gray-300 rounded text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 disabled="@(CurrentPage >= TotalPages - 1)" @onclick="NextPage">
                 Next
             </button>
@@ -149,11 +149,11 @@
 
     @if (SelectedItem != null)
     {
-        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div class="bg-white p-6 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold">Inventory Item: @SelectedItem.InventoryNumber</h2>
-                    <button @onclick="CloseItemDetails" class="text-gray-500 hover:text-gray-700">
+                    <h2 class="text-2xl font-bold text-gray-900">Inventory Item: @SelectedItem.InventoryNumber</h2>
+                    <button @onclick="CloseItemDetails" class="text-gray-400 hover:text-gray-600 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
                             stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -163,21 +163,21 @@
                 </div>
 
                 <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <h3 class="text-lg font-semibold">Item Details</h3>
-                        <div class="mt-2">
-                            <p><span class="font-medium">Description:</span> @SelectedItem.Description</p>
-                            <p><span class="font-medium">Category:</span> @(SelectedItem.CategoryName ?? "Unknown")</p>
-                            <p><span class="font-medium">First Seen:</span>
+                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <h3 class="text-lg font-semibold text-gray-800">Item Details</h3>
+                        <div class="mt-2 space-y-1 text-sm text-gray-700">
+                            <p><span class="font-medium text-gray-500">Description:</span> @SelectedItem.Description</p>
+                            <p><span class="font-medium text-gray-500">Category:</span> @(SelectedItem.CategoryName ?? "Unknown")</p>
+                            <p><span class="font-medium text-gray-500">First Seen:</span>
                                 @SelectedItem.FirstSeen.ToLocalTime().ToString("g")</p>
-                            <p><span class="font-medium">Last Seen:</span>
+                            <p><span class="font-medium text-gray-500">Last Seen:</span>
                                 @SelectedItem.LastSeen.ToLocalTime().ToString("g")</p>
-                            <p><span class="font-medium">Total Auctions:</span> @(SelectedItem.Auctions?.Count ?? 0)</p>
+                            <p><span class="font-medium text-gray-500">Total Auctions:</span> @(SelectedItem.Auctions?.Count ?? 0)</p>
                         </div>
                     </div>
-                    <div>
-                        <h3 class="text-lg font-semibold">Price History</h3>
-                        <div class="bg-white p-2 rounded border h-64">
+                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <h3 class="text-lg font-semibold text-gray-800">Price History</h3>
+                        <div class="bg-white p-2 rounded-lg border border-gray-200 h-64 mt-2">
                             @if (SelectedItemAuctions != null && SelectedItemAuctions.Any())
                             {
                                 <ApexChart @ref="priceHistoryChart" TItem="PriceDataPoint" Options="priceChartOptions">
@@ -200,11 +200,11 @@
                     </div>
                 </div>
 
-                <h3 class="text-lg font-semibold mb-2">Auction History</h3>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Auction History</h3>
                 @if (SelectedItemAuctions != null && SelectedItemAuctions.Any())
                 {
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
+                    <div class="overflow-x-auto rounded-xl border border-gray-100">
+                        <table class="min-w-full divide-y divide-gray-100">
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th scope="col"
@@ -236,7 +236,7 @@
                                         of Retail</th>
                                 </tr>
                             </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
+                            <tbody class="bg-white divide-y divide-gray-100">
                                 @foreach (var auction in SelectedItemAuctions)
                                 {
                                     var priceToShow = auction.State == AuctionState.Active ? auction.CurrentPrice :
@@ -247,11 +247,11 @@
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                                             <a href="@UrlHelpers.GenerateProductUrl(auction.Id, auction.Title)" target="_blank"
-                                                class="text-blue-600 hover:underline">@auction.Id</a>
+                                                class="text-primary-600 hover:text-primary-700 hover:underline">@auction.Id</a>
                                         </td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">@auction.Title</td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm">
-                                            <span class="px-2 py-1 rounded text-xs font-semibold @(auction.State == AuctionState.Active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800")">
+                                            <span class="px-2 py-1 rounded-full text-xs font-semibold @(auction.State == AuctionState.Active ? "bg-emerald-100 text-emerald-700" : "bg-gray-200 text-gray-600")">
                                                 @auction.State
                                             </span>
                                         </td>
@@ -264,7 +264,7 @@
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">@priceToShow.ToString("C", CultureInfo.GetCultureInfo("en-US"))</td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">@auction.BidCount</td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm">
-                                            <span class="px-2 py-1 rounded text-xs font-semibold @(percentOfRetail < 50 ? "bg-green-100 text-green-800" : percentOfRetail < 80 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800")">
+                                            <span class="px-2 py-1 rounded-full text-xs font-semibold @(percentOfRetail < 50 ? "bg-emerald-100 text-emerald-700" : percentOfRetail < 80 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700")">
                                                @percentOfRetail%
                                            </span>
                                         </td>
@@ -276,12 +276,12 @@
                 }
                 else
                 {
-                    <div class="bg-blue-50 text-blue-700 p-4 rounded">No auction history available for this item.</div>
+                    <div class="bg-primary-50 text-primary-700 p-4 rounded-lg">No auction history available for this item.</div>
                 }
 
                 <div class="mt-4 flex justify-end">
                     <button @onclick="CloseItemDetails"
-                        class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors">
+                        class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium">
                         Close
                     </button>
                 </div>

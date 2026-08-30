@@ -1,6 +1,6 @@
 # Nellis Scanner
 
-A .NET 9 application for tracking auctions on Nellis Auctions. The goal is to determine the quality of the marketplace by measuring a few public indicators i.e. the price.
+A .NET 10 application for tracking auctions on Nellis Auctions. The goal is to determine the quality of the marketplace by measuring a few public indicators i.e. the price.
 
 1. Grab the first X listings on some frequency
 2. Keep track of future listings for a given inventory ID
@@ -11,7 +11,7 @@ I am currently hosting it off [my homelab here](https://nellis-scanner.external.
 
 ## Foreword
 
-This repository is 99% agentic AI using GitHub Copilot with Claude Sonnet 3.7. This is merely a test project.
+This repository is 99% agentic AI. It was originally built with GitHub Copilot on Claude Sonnet 3.5/3.7, and was later modernized to .NET 10 with a refreshed UI using newer models. This is merely a test project.
 
 ## Background
 
@@ -26,20 +26,24 @@ The only way to draw conclusions is to have data, and that's the motivation for 
 
 - **Real-time Auction Monitoring**: Tracks auctions from Nellis Auctions with retail price high-to-low sorting.
 - **Price History Tracking**: Records price and bid history for auctions over time.
-- **Automatic Scanning**: Scans for new auctions every 5 minutes, with more frequent checks for auctions closing soon.
-- **Web Interface**: Blazor Server-rendered UI for viewing current auctions and their price history.
+- **Discount Insights**: Each listing shows the current discount vs. retail price.
+- **Automatic Scanning**: Scans for new auctions on a recurring schedule, with more frequent checks for auctions closing soon.
+- **Web Interface**: Blazor Server-rendered UI with a modern Tailwind CSS v4 design for viewing current auctions and their price history.
 
 ## Architecture
 
 This solution consists of two main components:
 
-1. **NellisScanner.Core**: .NET 9 class library for parsing Nellis Auction data, containing the data models and parsing logic.
-2. **NellisScanner.Web**: ASP.NET Core 9 Blazor Server application that uses the core library and provides a web interface.
+1. **NellisScanner.Core**: .NET 10 class library for parsing Nellis Auction data, containing the data models and parsing logic.
+2. **NellisScanner.Web**: ASP.NET Core 10 Blazor Server application that uses the core library and provides a web interface.
+
+Data is stored in PostgreSQL via Entity Framework Core 10, background jobs are scheduled with Hangfire, and charts are rendered with ApexCharts (Blazor-ApexCharts).
 
 ## Requirements
 
-- [.NET 9 SDK](https://dotnet.microsoft.com/download)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Docker](https://www.docker.com/products/docker-desktop) and Docker Compose
+- [Node.js](https://nodejs.org/) (for Tailwind CSS builds during development)
 
 ## Running the Application
 
@@ -106,6 +110,17 @@ This solution consists of two main components:
    ```sh
    dotnet run
    ```
+
+## Modernization Notes (.NET 10)
+
+The codebase was upgraded from .NET 9 to .NET 10. Notable changes:
+
+- All projects target `net10.0` and all NuGet packages were bumped to their .NET 10-compatible versions (EF Core 10, Npgsql 10, Serilog 10, Blazor-ApexCharts 7, bUnit 2, xunit, etc.).
+- **Serilog 10**: the bootstrap logger now uses `CreateLogger()` with `preserveStaticLogger: true` instead of the removed/deprecated frozen `CreateBootstrapLogger()` pattern.
+- **bUnit 2**: `TestContext` → `BunitContext` and `RenderComponent<T>()` → `Render<T>()`.
+- **EF Core 10**: the in-memory bulk-upsert helper no longer copies navigation properties via reflection — setting a navigation to `null` now marks the entity as `Deleted`.
+- **Docker**: base images updated to `mcr.microsoft.com/dotnet/sdk:10.0-noble` and `mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra`.
+- **UI facelift**: refreshed layout, navigation, dashboard cards, auction cards (with discount badges), and tables using a modern Tailwind CSS v4 theme.
 
 ## References
 

@@ -12,7 +12,7 @@ using Xunit;
 
 namespace NellisScanner.Web.Tests.Components
 {
-    public class AuctionsPageTests : TestContext
+    public class AuctionsPageTests : BunitContext
     {
         private readonly NellisScannerDbContext _dbContext;
 
@@ -35,14 +35,14 @@ namespace NellisScanner.Web.Tests.Components
             await SeedDatabaseWithTestData();
 
             // Act
-            var cut = RenderComponent<Auctions>();
+            var cut = Render<Auctions>();
 
             // Assert
             // Wait for auctions to load
-            cut.WaitForElement("div.bg-white");
+            cut.WaitForElement("div.bg-white.hover\\:shadow-md");
 
             // Should display 5 auction cards (default page size is 12, we have 5 items)
-            var auctionCards = cut.FindAll("div.bg-white");
+            var auctionCards = cut.FindAll("div.bg-white.hover\\:shadow-md");
             Assert.Equal(5, auctionCards.Count());
 
             // Check that auction titles are displayed
@@ -59,10 +59,10 @@ namespace NellisScanner.Web.Tests.Components
             await SeedDatabaseWithTestData();
 
             // Act
-            var cut = RenderComponent<Auctions>();
+            var cut = Render<Auctions>();
 
             // Wait for initial load
-            cut.WaitForElement("div.bg-white");
+            cut.WaitForElement("div.bg-white.hover\\:shadow-md");
 
             // Find the search input and enter a search term
             var searchInput = cut.Find("input[type='text']");
@@ -73,7 +73,7 @@ namespace NellisScanner.Web.Tests.Components
             searchButton.Click();
 
             // Wait for the filtered results
-            cut.WaitForState(() => cut.FindAll("div.bg-white").Count() < 5);
+            cut.WaitForState(() => cut.FindAll("div.bg-white.hover\\:shadow-md").Count() < 5);
 
             // Assert - check if markup contains "Laptop" but not other product names
             var markup = cut.Markup;
@@ -88,10 +88,10 @@ namespace NellisScanner.Web.Tests.Components
             await SeedDatabaseWithTestData();
 
             // Act
-            var cut = RenderComponent<Auctions>();
+            var cut = Render<Auctions>();
 
             // Wait for initial load
-            cut.WaitForElement("div.bg-white");
+            cut.WaitForElement("div.bg-white.hover\\:shadow-md");
 
             // Find and change the sort select - look for any select element
             var sortSelect = cut.Find("select");
@@ -115,10 +115,10 @@ namespace NellisScanner.Web.Tests.Components
             await SeedDatabaseWithTestData();
 
             // Act
-            var cut = RenderComponent<Auctions>();
+            var cut = Render<Auctions>();
 
             // Wait for initial load
-            cut.WaitForElement("div.bg-white");
+            cut.WaitForElement("div.bg-white.hover\\:shadow-md");
 
             // Search for something that doesn't exist
             var searchInput = cut.Find("input[type='text']");
@@ -131,7 +131,7 @@ namespace NellisScanner.Web.Tests.Components
             // Wait for the component to update and show the empty state
             cut.WaitForState(() =>
                 cut.Markup.Contains("No auctions found") ||
-                !cut.FindAll("div.bg-white").Any());
+                !cut.FindAll("div.bg-white.hover\\:shadow-md").Any());
 
             // Assert - check if markup contains the empty state message
             var markup = cut.Markup;

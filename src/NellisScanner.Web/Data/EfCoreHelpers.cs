@@ -106,7 +106,12 @@ public static class EfCoreHelpers
                     if (keyProperties.Contains(property.Name) || 
                         (excludedUpdateProperties != null && excludedUpdateProperties.Contains(property.Name)))
                         continue;
-                        
+
+                    // Skip navigation properties - only copy scalar/value properties.
+                    // Setting a navigation to null can mark the entity as Deleted in EF Core 10+.
+                    if (entityType.FindNavigation(property.Name) != null)
+                        continue;
+
                     var value = property.GetValue(entity);
                     property.SetValue(existingEntity, value);
                 }

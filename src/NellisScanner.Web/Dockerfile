@@ -1,5 +1,5 @@
 # Use the official .NET SDK as a build image
-FROM mcr.microsoft.com/dotnet/sdk:9.0-noble AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0-noble AS build
 RUN apt update && apt install -y curl gnupg2 apt-transport-https ca-certificates lsb-release \
     && curl -sL https://deb.nodesource.com/setup_22.x | bash - \
     && apt install -y nodejs \
@@ -28,7 +28,7 @@ FROM build AS publish
 RUN dotnet publish --no-restore -c Release -o /app/publish
 
 # Use the Ubuntu Chiseled ASP.NET runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:9.0-noble-chiseled-extra AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra AS final
 WORKDIR /app
 EXPOSE 80
 EXPOSE 443

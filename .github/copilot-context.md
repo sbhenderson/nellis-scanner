@@ -1,7 +1,7 @@
 # Nellis Scanner - Copilot Context
 
 ## Project Overview
-Nellis Scanner is a .NET 9 application for tracking auctions on Nellis Auctions, specifically designed to monitor and analyze auction data over time. The application scrapes the Nellis Auctions website, stores data in PostgreSQL, and provides a web interface to view the data.
+Nellis Scanner is a .NET 10 application for tracking auctions on Nellis Auctions, specifically designed to monitor and analyze auction data over time. The application scrapes the Nellis Auctions website, stores data in PostgreSQL, and provides a web interface to view the data.
 
 ## Key Components
 
@@ -18,8 +18,8 @@ Nellis Scanner is a .NET 9 application for tracking auctions on Nellis Auctions,
 - ApexCharts for data visualization
 
 ## Technical Stack
-- .NET 9 (C# 12)
-- ASP.NET Core 9 Blazor Server
+- .NET 10 (C# 14)
+- ASP.NET Core 10 Blazor Server
 - PostgreSQL database
 - Entity Framework Core
 - Hangfire for background processing
